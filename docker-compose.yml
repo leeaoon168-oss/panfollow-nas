@@ -27,13 +27,14 @@ services:
       - ${DATA_HOST_DIR:-/vol1/1000}:/mnt/data
     shm_size: "1gb"
 
-  # ---- 以下为旧版遗留，正常部署不需要 ----
-  # aria2 / Alist 只服务早期版本，下载已全部由 BaiduPCS-Go 完成
+  # ---- 夸克下载用的执行器 ----
+  # 百度下载走容器内的 BaiduPCS-Go，不需要它；
+  # 夸克的大文件必须经 Alist 转成直链，再由 aria2 落盘。
+  # 只用百度的话可以不启动：docker compose up -d web
   aria2:
     image: p3terx/aria2-pro:latest
     container_name: panfollow-aria2
-    profiles: ["legacy"]
-    restart: "no"
+    restart: unless-stopped
     environment:
       - RPC_SECRET=${ARIA2_SECRET:-change-me}
       - RPC_PORT=6800
