@@ -1,0 +1,8 @@
+# 大文件 / 长连接场景下放宽文件句柄限制
+# 症状：日志里频繁出现 sqlite3.OperationalError: unable to open database file
+services:
+  web:
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
