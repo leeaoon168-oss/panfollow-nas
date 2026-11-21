@@ -17,6 +17,13 @@
   <img src="docs/images/screenshot-settings.png" width="240" alt="设置">
 </p>
 
+<p align="center">
+  <img src="docs/images/architecture.png" alt="架构：文档清单 → NAS 文件" width="820">
+</p>
+
+<details>
+<summary>纯文字版（不方便看图时）</summary>
+
 ```
 ┌──────────────── 每 N 小时自动跑一轮 ────────────────┐
 │                                                    │
@@ -36,6 +43,9 @@
 │                    /downloads/<剧名>/               │
 └────────────────────────────────────────────────────┘
 ```
+
+</details>
+
 
 ## 特性
 
