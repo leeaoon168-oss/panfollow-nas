@@ -3,8 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0A0C10">
-<title>设置 · 追更</title>
+<meta name="theme-color" content="#171C24">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/icon-180.png">
+<title>设置 · PanFollow</title>
 <style>
 /* ============ 设计变量（与主界面共用同一套） ============ */
 :root{
@@ -323,6 +325,27 @@ select{background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.o
         </div>
         <div class="cfoot">
           <div class="st" id="st"></div>
+        </div>
+      </div>
+
+      <div class="card" id="quarkCard">
+        <div class="chead">
+          <div class="ci"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M8 12h8M12 8v8"/></svg></div>
+          <div class="ct"><h3>夸克网盘</h3><p>扫码登录后能下载夸克分享；不登录也能探测集数与画质</p></div>
+          <span class="tag" id="tag-quark">未登录</span>
+        </div>
+        <div class="cbody">
+          <div id="qkQrWrap" style="display:none;text-align:center;margin-top:4px">
+            <img id="qkQr" alt="夸克登录二维码"
+                 style="width:230px;height:230px;border-radius:12px;border:1px solid var(--line2);background:#fff">
+            <div class="hint" id="qkQrHint" style="margin-top:8px">用「夸克 App」扫码，扫完这里会自动变成已登录</div>
+          </div>
+          <div class="hint" id="qkInfo" style="margin:0">未登录：夸克来源只能显示集数/画质，不能下载。</div>
+        </div>
+        <div class="cfoot">
+          <button class="btn" id="qkLogin"><i class="sp"></i>生成二维码</button>
+          <button class="btn ghost" id="qkTest">测试接口</button>
+          <div class="st" id="qkSt"></div>
         </div>
       </div>
     </section>
@@ -936,6 +959,74 @@ function updateBdussInfo(){
 }
 $('#bduss').addEventListener('input', updateBdussInfo);
 
+/* ---------- 夸克登录 ---------- */
+let qkTimer = null;
+function qkSet(cls, text, tagCls, tagText){
+  const st = document.querySelector('#qkSt');
+  st.className = 'st' + (cls ? ' ' + cls : '');
+  st.textContent = text || '';
+  if (tagCls !== undefined){
+    const t = document.querySelector('#tag-quark');
+    t.className = 'tag' + (tagCls ? ' ' + tagCls : '');
+    t.textContent = tagText || '';
+  }
+}
+function qkShowQr(on){
+  document.querySelector('#qkQrWrap').style.display = on ? 'block' : 'none';
+  if (on) document.querySelector('#qkQr').src = '/api/quark/login.png?t=' + Date.now();
+}
+async function qkPoll(){
+  try{
+    const d = await (await fetch('/api/quark/login/status')).json();
+    if (d.shot) document.querySelector('#qkQr').src = '/api/quark/login.png?t=' + Date.now();
+    if (d.logged_in || (d.has_cookie && d.verify && d.verify.ok)){
+      if (qkTimer){ clearInterval(qkTimer); qkTimer = null; }
+      qkShowQr(false);
+      qkSet('ok', '✅ 夸克已登录，Cookie 已保存', 'ok', '已登录');
+      document.querySelector('#qkInfo').textContent = '已登录：夸克来源可以正常探测 + 下载。';
+      await load();
+      return;
+    }
+    if (d.error){
+      if (qkTimer){ clearInterval(qkTimer); qkTimer = null; }
+      qkSet('err', '❌ ' + d.error);
+      return;
+    }
+    if (d.running){
+      qkShowQr(true);
+      qkSet('', (d.hint || '等待扫码') + (d.expires_in ? '（剩 ' + d.expires_in + 's）' : ''));
+    } else if (d.has_cookie){
+      qkSet('warn', '有 Cookie 但接口没通：' + ((d.verify && d.verify.error) || '可能需要重新登录'), 'warn', '已失效');
+    } else {
+      qkSet('', '未登录');
+    }
+  }catch(e){ /* 单次失败忽略 */ }
+}
+document.querySelector('#qkLogin').onclick = async function(){
+  const btn = this; busy(btn, true, '打开中…');
+  try{
+    const d = await (await fetch('/api/quark/login/start', {method:'POST'})).json();
+    if (!d.ok) throw new Error(d.error || '启动失败');
+    qkSet('', '正在打开夸克登录页…');
+    qkShowQr(true);
+    if (!qkTimer) qkTimer = setInterval(qkPoll, 1600);
+    setTimeout(qkPoll, 800);
+  }catch(e){ qkSet('err', '❌ ' + e.message); }
+  finally{ busy(btn, false, '生成二维码'); }
+};
+document.querySelector('#qkTest').onclick = async function(){
+  const btn = this; busy(btn, true, '测试中…');
+  try{
+    const d = await (await fetch('/api/quark/test', {method:'POST'})).json();
+    if (d.ok){
+      qkSet('ok', '✅ 接口正常（网盘文件 ' + (d.verify.total ?? '?') + ' 项，分享样本 ' + d.sample_files + ' 个文件）', 'ok', '已登录');
+    } else {
+      qkSet('err', '❌ ' + (d.error || '失败'));
+    }
+  }catch(e){ qkSet('err', '❌ ' + e.message); }
+  finally{ busy(btn, false, '测试接口'); }
+};
+
 /* ---------- 目录选择 ---------- */
 let dirCur = '';
 async function openDir(path){
@@ -991,7 +1082,7 @@ document.addEventListener('click', e => {
   }
 });
 
-load().then(syncNav);
+load().then(syncNav).then(function(){ qkPoll(); });
 </script>
 </body>
 </html>
