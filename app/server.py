@@ -28,6 +28,7 @@ import ai
 import kdocs
 import login
 import notify
+import quark
 import settings
 import store
 from alist import Alist, AlistError
@@ -101,7 +102,11 @@ MAX_SCROLL = int(os.environ.get("MAX_SCROLL", "160"))
 
 # 分享目录里常混着花絮/封面，这些不下
 SKIP_WORDS = ("陪看", "花絮", "预告", "彩蛋", "主题曲", "OST", "海报", "封面",
-              "片头", "片尾", "字幕", "样片")
+              "样片")
+
+# 这些词出现在「文件名」里才算跳过；出现在目录名里不能算
+# （例：目录叫「[简繁内封字幕]」，里面是正片，不能当字幕跳过）
+SKIP_NAME_WORDS = ("字幕", "subtitle", "subs")
 EP_PATTERNS = (r"^0*(\d{1,3})[\.\s_\-]", r"第\s*0*(\d{1,3})\s*[集话]", r"[Ee][Pp]?[\.\-\s]?0*(\d{1,3})")
 LS_ROW = re.compile(r"^\s*\d+\s+(\S+)\s+\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\s{2,}(.+?)\s*$")
 
@@ -194,7 +199,7 @@ _LOCK = threading.Lock()
 _PCS_LOCK = threading.Lock()
 _STATE = {"refreshing": False, "syncing": False}
 
-app = FastAPI(title="kdocs 追更")
+app = FastAPI(title="PanFollow")
 
 
 # ---------- 工具 ----------
@@ -321,6 +326,8 @@ def analyze_files(files, start_ep: int = 1, pref: str = "best") -> dict:
         if Path(name).suffix.lower() not in VIDEO_EXT:
             continue
         if any(w in rel for w in SKIP_WORDS):
+            continue
+        if any(w in name.lower() for w in SKIP_NAME_WORDS):
             continue
         cand.append((str(Path(rel).parent), rel, name, parse_ep(name)))
 
@@ -558,17 +565,28 @@ def local_files(slug: str) -> set[str]:
         return set()
     good: set[str] = set()
     removed = 0
+    now = time.time()
     for p in d.rglob("*"):
         if not p.is_file() or p.name.endswith(".aria2") or p.name.endswith(PARTIAL_SUFFIX):
             continue
-        if _is_error_stub(p) or is_partial(p) or not is_valid_media(p):
-            try:
-                p.unlink()
-                removed += 1
-            except OSError:
-                pass
+        bad = _is_error_stub(p) or is_partial(p) or not is_valid_media(p)
+        if not bad:
+            good.add(p.name)
             continue
-        good.add(p.name)
+        # 判为"坏"的先别急着删：aria2 会先按总大小预分配（内容全零），
+        # 正在下或刚写进来的文件很容易被误杀。只删「没在下载 + 放了一会儿」的。
+        if Path(str(p) + ".aria2").exists():
+            continue
+        try:
+            if now - p.stat().st_mtime < 600:
+                continue
+        except OSError:
+            continue
+        try:
+            p.unlink()
+            removed += 1
+        except OSError:
+            pass
     if removed:
         print(f"[clean] {slug}: 清掉 {removed} 个损坏/无效文件", flush=True)
     return good
@@ -1155,6 +1173,214 @@ def pcs_login() -> None:
     raise RuntimeError(f"百度登录失败：{out[-200:]}")
 
 
+QUARK_MOUNT = "/quark"
+
+
+def _size_txt(n) -> str:
+    try:
+        n = float(n or 0)
+    except (TypeError, ValueError):
+        return "0"
+    for unit in ("B", "KB", "MB", "GB", "TB"):
+        if n < 1024 or unit == "TB":
+            return f"{n:.2f}{unit}"
+        n /= 1024
+    return f"{n:.2f}TB"
+
+
+def ensure_quark_mount() -> str:
+    """确保 Alist 里挂着夸克网盘（取直链靠它，因为夸克对大文件不直接给 URL）。"""
+    if not quark.has_cookie():
+        raise RuntimeError("夸克未登录：去设置页「连接与账号 → 夸克网盘」扫码")
+    a = alist()
+    try:
+        a.ensure_quark_storage(QUARK_MOUNT, quark.cookie_header())
+    except Exception as e:
+        raise RuntimeError(f"Alist 挂载夸克失败：{e}")
+    return QUARK_MOUNT
+
+
+def download_show_quark(slug: str, sh: dict, src: dict) -> None:
+    """夸克下载：转存到自己网盘 → 用 Alist 取直链 → aria2 落盘。"""
+    mount = ensure_quark_mount()
+    safe = re.sub(r"[^\w\u4e00-\u9fa5-]", "", slug)[:24] or "show"
+    folder = f"PanFollow-{safe}"
+
+    set_phase(slug, "转存中", f"夸克：转存到「{folder}」")
+    fid = quark.ensure_folder(folder)
+    quark.transfer(src["url"], to_pdir_fid=fid)
+
+    set_phase(slug, "列目录", "等 Alist 看到转存内容…")
+    a = alist()
+    files = []
+    for _ in range(6):
+        time.sleep(2.0)
+        try:
+            # Alist 会缓存目录树，新建的文件夹要先刷一次挂载根才能看到
+            a.list_dir(mount, refresh=True)
+            files = [(p, o) for p, o in a.walk(f"{mount}/{folder}", refresh=True)
+                     if Path(p).suffix.lower() in VIDEO_EXT | {".zip"}]
+        except Exception:
+            files = []
+        if files:
+            break
+    if not files:
+        raise RuntimeError("转存后在 Alist 里看不到文件（可能任务还没跑完，或分享为空）")
+
+    start_ep = store.sub_map().get(slug, 1)
+    pref = store.get_pref(slug) or "best"
+    zips = [(p, o) for p, o in files if Path(p).suffix.lower() == ".zip"]
+    vids = [(p, o) for p, o in files if Path(p).suffix.lower() in VIDEO_EXT]
+    flat = [(p, o.get("name") or Path(p).name, _size_txt(o.get("size")))
+            for p, o in vids]
+    an = analyze_files(flat, start_ep, pref) if flat else {"targets": []}
+    targets = an["targets"]
+    if not targets and not zips:
+        raise RuntimeError("分享里没有符合条件的视频文件")
+
+    out_dir = show_root(slug)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    local = local_files(slug)
+    queued = aria().queue_names()
+
+    # 任务清单：视频按集挑，zip 整包下完再解压（按文件名去重，分享里常有重复条目）
+    jobs, _seen = [], set()
+    for t in targets:
+        name = t[1]
+        path = next((p for p, o in files
+                     if (o.get("name") or Path(p).name) == name), "")
+        if path and name not in _seen:
+            _seen.add(name)
+            jobs.append((name, path, False))
+    for p, o in zips:
+        zname = o.get("name") or Path(p).name
+        if zname not in _seen:
+            _seen.add(zname)
+            jobs.append((zname, p, True))
+
+    done = 0
+    for i, (name, path, is_zip) in enumerate(jobs, 1):
+        if name in local or name in queued:
+            continue
+        set_phase(slug, "下载中", f"夸克 [{i}/{len(jobs)}] {name}")
+        try:
+            url = a.link(path)
+            # 试链：直链过期时 Alist 会回 JSON/HTML 错误，aria2 会当成文件存下来
+            r = httpx.get(url, timeout=60, follow_redirects=True,
+                          headers={"Range": "bytes=0-320"})
+            head = (r.content or b"")[:320].lstrip()
+            if r.status_code >= 400 or head.startswith(b'{"code"') or head.startswith(b"<"):
+                raise RuntimeError(f"直链无效（HTTP {r.status_code}）")
+        except Exception as e:
+            print(f"[quark] {slug}: 取链失败 {name}: {e}", flush=True)
+            continue
+        aria().add(url, str(out_dir), out=name)
+        store.mark_file(slug, name, "queued")
+        done += 1
+
+    if not done:
+        print(f"[quark] {slug}: 没有新增需要下载的文件", flush=True)
+        return
+
+    # 等这一批落盘
+    deadline = time.time() + 8 * 3600
+    last = 0
+    while time.time() < deadline:
+        have = sum(1 for n, _, _ in jobs if (out_dir / n).exists())
+        if have != last:
+            last = have
+            set_phase(slug, "下载中", f"夸克 {have}/{len(jobs)} 已落盘")
+        if have >= len(jobs):
+            break
+        if not busy_aria():
+            time.sleep(3)
+            if sum(1 for n, _, _ in jobs if (out_dir / n).exists()) >= len(jobs):
+                break
+        time.sleep(5)
+
+    # 大小对账：明显小于源文件就是下坏了（典型是错误页被当文件）
+    want = {}
+    for p, o in files:
+        nm = o.get("name") or Path(p).name
+        try:
+            want[nm] = int(o.get("size") or 0)
+        except Exception:
+            want[nm] = 0
+    for name, path, is_zip in jobs:
+        f2 = out_dir / name
+        w = want.get(name) or 0
+        if f2.exists() and w and f2.stat().st_size < w * 0.9 and not (is_zip and f2.stat().st_size > 1024):
+            try:
+                print(f"[quark] {slug}: {name} 只有 {f2.stat().st_size} / {w}，删掉重试", flush=True)
+                f2.unlink()
+            except OSError:
+                pass
+
+    # 解压 zip（夸克很多分享是分卷 zip，不是单集视频）
+    for name, path, is_zip in jobs:
+        z = out_dir / name
+        if not is_zip or not z.exists():
+            continue
+        try:
+            set_phase(slug, "解压中", f"解压 {name}")
+            n = unzip_into(z, out_dir)
+            z.unlink(missing_ok=True)
+            print(f"[quark] {slug}: 解压 {name} → {n} 个文件", flush=True)
+        except Exception as e:
+            print(f"[quark] {slug}: 解压失败 {name}: {e}", flush=True)
+
+    have_video = sum(1 for f in local_files(slug))
+    print(f"[quark] {slug}: 完成，落盘 {last}/{len(jobs)}，当前视频 {have_video} 个", flush=True)
+
+    # 下完就把网盘里的转存清掉，别占空间（下次要下会重新转存）
+    if last >= len(jobs):
+        try:
+            ids = [o.get("fid") for _, o in files if o.get("fid")]
+            quark.remove(ids)
+            quark.remove([fid])
+            print(f"[quark] {slug}: 已清理网盘暂存", flush=True)
+        except Exception as e:
+            print(f"[quark] {slug}: 清理暂存失败 {e}", flush=True)
+
+
+def unzip_into(zpath: Path, out_dir: Path) -> int:
+    """解压到目标目录，文件名优先 UTF-8，失败退回 GBK（国产压缩包常见）。"""
+    import zipfile
+    n = 0
+    with zipfile.ZipFile(zpath) as z:
+        for info in z.infolist():
+            if info.is_dir():
+                continue
+            name = info.filename
+            if not (info.flag_bits & 0x800):        # 非 UTF-8 标记
+                try:
+                    name = name.encode("cp437").decode("gbk")
+                except Exception:
+                    pass
+            name = name.replace("\\", "/").split("/")[-1]
+            if not name or name.startswith("."):
+                continue
+            dst = out_dir / name
+            if dst.exists() and dst.stat().st_size == info.file_size:
+                continue
+            with z.open(info) as src, dst.open("wb") as fh:
+                while True:
+                    buf = src.read(1 << 20)
+                    if not buf:
+                        break
+                    fh.write(buf)
+            n += 1
+    return n
+
+
+def busy_aria() -> bool:
+    try:
+        st = aria().stats()
+        return bool(st.get("ok") and (st.get("active") or st.get("waiting")))
+    except Exception:
+        return False
+
+
 def download_show(slug: str) -> None:
     sh = store.show(slug)
     if not sh:
@@ -1179,6 +1405,8 @@ def download_show(slug: str) -> None:
                     src = nxt
                     set_phase(slug, "换源补全",
                               f"{src.get('label')} 有 {src.get('probe_eps')} 集")
+    if src and (src.get("provider") or "百度") == "夸克":
+        return download_show_quark(slug, sh, src)
     if src and (src.get("provider") or "百度") == "百度":
         url, pwd0 = src["url"], src.get("pwd") or ""
         src_label = src.get("label") or "百度"
@@ -1507,6 +1735,25 @@ def probe_source(src: dict, force: bool = False) -> dict:
             "probe_score": 0, "probe_bytes": 0}
     pan = f"/probe/{slug[:24]}-{sid}-{now}"
     try:
+        if prov == "夸克":
+            # 夸克分享游客即可读：数集数、算体积、判画质，不需要登录
+            files = quark.share_tree(src["url"])
+            an = analyze_files(files, 1, (store.get_pref(slug) or "best"))
+            best = an["best"]
+            ep = max(best) if best else 0
+            # 电影这类单文件没有集号，当作 1 集，否则永远排不进候选
+            eps_n = len(best) if best else (1 if any(
+                Path(n).suffix.lower() in VIDEO_EXT for _, n, _ in files) else 0)
+            if not best and eps_n:
+                ep = 1
+            tot = sum(parse_size(sz) for _, _, sz in files)
+            data = {"probe_eps": eps_n, "probe_max": ep,
+                    "probe_quality": an["label"], "probe_score": an.get("score") or 0,
+                    "probe_bytes": tot}
+            store.update_source(sid, last_probe=now, probe_note="夸克·免登录探测",
+                                **data)
+            print(f"[probe] {slug}: 夸克 {eps_n} 集 · {an['label']}", flush=True)
+            return store.get_source(sid) or src
         if prov != "百度":
             raise RuntimeError(f"{prov} 暂不支持探测（目前只做百度）")
         surl, pwd2 = kdocs.baidu_surl(src["url"])
@@ -1829,6 +2076,29 @@ def service_worker():
                         headers={"Cache-Control": "no-cache"})
 
 
+@app.get("/icon-{size}.png")
+def pwa_icon_png(size: str):
+    if size not in ("180", "192", "512"):
+        return JSONResponse({"ok": False, "error": "not found"}, status_code=404)
+    p = Path(__file__).parent / "static" / ("icon-" + size + ".png")
+    if not p.exists():
+        return JSONResponse({"ok": False, "error": "not found"}, status_code=404)
+    return FileResponse(p, media_type="image/png",
+                        headers={"Cache-Control": "public, max-age=86400"})
+
+
+@app.get("/icon-{size}.png")
+def pwa_icon_png(size: str):
+    """PWA 图标：icon-192.png / icon-512.png（由 icon.svg 渲染而来）。"""
+    if size not in ("192", "512"):
+        return JSONResponse({"ok": False, "error": "no such icon"}, status_code=404)
+    p = Path(__file__).parent / "static" / f"icon-{size}.png"
+    if not p.exists():
+        return JSONResponse({"ok": False, "error": "no such icon"}, status_code=404)
+    return FileResponse(p, media_type="image/png",
+                        headers={"Cache-Control": "public, max-age=86400"})
+
+
 @app.get("/icon.svg")
 def pwa_icon():
     return FileResponse(Path(__file__).parent / "static" / "icon.svg",
@@ -1848,6 +2118,52 @@ def login_start():
 @app.get("/api/login/status")
 def login_status():
     return login.status()
+
+
+# ---------------- 夸克 ----------------
+
+@app.post("/api/quark/login/start")
+def quark_login_start():
+    return quark.start()
+
+
+@app.get("/api/quark/login/status")
+def quark_login_status():
+    s = quark.status()
+    s["verify"] = quark.verify() if s.get("has_cookie") else {"ok": False, "error": "未登录"}
+    return s
+
+
+@app.get("/api/quark/login.png")
+def quark_login_png():
+    p = quark.shot_path()
+    if not p.exists():
+        return JSONResponse({"ok": False, "error": "还没有截图"}, status_code=404)
+    return FileResponse(p, media_type="image/png",
+                        headers={"Cache-Control": "no-store"})
+
+
+@app.post("/api/quark/cookie")
+def quark_save_cookie(req: dict | None = None):
+    raw = (req or {}).get("cookie", "")
+    try:
+        quark.save_cookie(raw)
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+    return {"ok": True, "verify": quark.verify()}
+
+
+@app.post("/api/quark/test")
+def quark_test():
+    v = quark.verify()
+    if not v.get("ok"):
+        return {"ok": False, "error": v.get("error")}
+    try:
+        files = quark.share_tree("https://pan.quark.cn/s/7f0aabbf988c")
+        return {"ok": True, "verify": v, "sample_files": len(files),
+                "first": [f[1] for f in files[:3]]}
+    except Exception as e:
+        return {"ok": False, "error": f"{type(e).__name__}: {e}", "verify": v}
 
 
 @app.get("/settings")
@@ -2794,14 +3110,14 @@ def pause(req: PauseReq):
 
 
 class NotifyReq(BaseModel):
-    title: str = "追更测试"
+    title: str = "PanFollow 测试"
     body: str = "这是一条测试通知，收到说明配置正确。"
 
 
 @app.post("/api/notify/test")
 def notify_test(req: NotifyReq | None = None):
     req = req or NotifyReq()
-    title = req.title or "追更·测试通知"
+    title = req.title or "PanFollow·测试通知"
     body = req.body or "收到这条说明推送配置正确 ✅"
     ok, msg = notify.send(title, body)
     try:
