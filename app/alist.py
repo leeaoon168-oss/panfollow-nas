@@ -126,26 +126,69 @@ class Alist:
         time.sleep(0.8)                     # 等它异步初始化
         return {"id": data.get("id"), "mount_path": mount_path}
 
+    def ensure_quark_storage(self, mount_path: str, cookie: str) -> dict:
+        """确保挂载点是夸克网盘（cookie 变了就更新）。"""
+        want = {"cookie": cookie, "root_folder_id": "0"}
+        want_json = json.dumps(want, ensure_ascii=False)
+        for s in self.storages():
+            if s.get("mount_path") != mount_path:
+                continue
+            try:
+                cur = json.loads(s.get("addition") or "{}")
+            except Exception:
+                cur = {}
+            if (cur.get("cookie") or "") == cookie:
+                return s
+            payload = {
+                "id": s.get("id"),
+                "mount_path": mount_path,
+                "order": s.get("order", 0),
+                "driver": "Quark",
+                "cache_expiration": s.get("cache_expiration", 30),
+                "status": "",
+                "addition": want_json,
+                "order_by": s.get("order_by", "name"),
+                "order_direction": s.get("order_direction", "asc"),
+                "extract_folder": s.get("extract_folder", ""),
+                "web_proxy": True,
+                "webdav_policy": s.get("webdav_policy", "native_proxy"),
+                "down_proxy_url": s.get("down_proxy_url", ""),
+            }
+            self._call("POST", "/api/admin/storage/update", payload)
+            time.sleep(1.2)
+            return {"id": s.get("id"), "mount_path": mount_path, "updated": True}
+
+        payload = {
+            "mount_path": mount_path, "order": 0, "driver": "Quark",
+            "cache_expiration": 30, "status": "", "addition": want_json,
+            "order_by": "name", "order_direction": "asc", "extract_folder": "",
+            "web_proxy": True, "webdav_policy": "native_proxy", "down_proxy_url": "",
+        }
+        data = self._call("POST", "/api/admin/storage/create", payload)
+        time.sleep(1.2)
+        return {"id": data.get("id"), "mount_path": mount_path}
+
     def delete_storage(self, storage_id: int) -> None:
         self._call("POST", f"/api/admin/storage/delete?id={storage_id}")
 
     # ---------- 文件 ----------
 
-    def list_dir(self, path: str) -> list[dict]:
+    def list_dir(self, path: str, refresh: bool = False) -> list[dict]:
         data = self._call("POST", "/api/fs/list",
                           {"path": path, "password": "", "page": 1,
-                           "per_page": -1, "refresh": False})
+                           "per_page": -1, "refresh": bool(refresh)})
         return data.get("content", []) or []
 
-    def walk(self, path: str, depth: int = 0) -> Iterable[tuple[str, dict]]:
+    def walk(self, path: str, depth: int = 0,
+             refresh: bool = False) -> Iterable[tuple[str, dict]]:
         """递归列出所有文件，产出 (相对路径, 对象)。"""
         if depth > 4:
             return
-        for obj in self.list_dir(path):
+        for obj in self.list_dir(path, refresh=refresh):
             name = obj.get("name", "")
             child = f"{path.rstrip('/')}/{name}"
             if obj.get("is_dir"):
-                yield from self.walk(child, depth + 1)
+                yield from self.walk(child, depth + 1, refresh=refresh)
             else:
                 yield child, obj
 
