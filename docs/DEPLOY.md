@@ -40,8 +40,8 @@ docker compose up -d --build
 仓库的 GitHub Actions 会在每次 push 后构建 `linux/amd64` + `linux/arm64` 双架构镜像：
 
 ```bash
-docker pull ghcr.io/<owner>/panfollow-nas:latest
-IMAGE=ghcr.io/<owner>/panfollow-nas:latest docker compose up -d
+docker pull ghcr.io/leeaoon168-oss/panfollow-nas:latest
+IMAGE=ghcr.io/leeaoon168-oss/panfollow-nas:latest docker compose up -d
 ```
 
 启动差不多 10 秒，不占构建时间，也不用管 Debian/pip 源的问题。
