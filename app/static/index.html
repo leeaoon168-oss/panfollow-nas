@@ -3,10 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1,user-scalable=no">
-<meta name="theme-color" content="#0B0D11">
+<meta name="theme-color" content="#171C24">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <link rel="manifest" href="/manifest.webmanifest">
-<title>追更</title>
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/icon-180.png">
+<title>PanFollow</title>
 <style>
 :root{--bg:#0A0C10;--s1:#11151C;--s2:#161B24;--s3:#1D232E;
  --card:#11151C;--card2:#161B24;
@@ -317,7 +319,7 @@ main{padding:11px}
     <button class="iconbtn" id="btnMenu" aria-label="菜单">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
     </button>
-    <div class="brand" id="pageTitle">追更</div>
+    <div class="brand" id="pageTitle">PanFollow</div>
     <div class="hmeta" id="hmeta">载入中</div>
     <button class="iconbtn" id="btnRefresh" aria-label="刷新">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v6h-6"/></svg>
@@ -336,7 +338,7 @@ main{padding:11px}
   </div>
   <div class="quick" id="quick">
     <span class="qchip on" data-q="">全部<b id="qAll">0</b></span>
-    <span class="qchip" data-q="sub">追更中<b id="qSub">0</b></span>
+    <span class="qchip" data-q="sub">订阅中<b id="qSub">0</b></span>
     <span class="qchip" data-q="new">有新集<b id="qNew">0</b></span>
     <span class="qchip" data-q="run">下载中<b id="qRun">0</b></span>
     <span class="qchip" data-q="fin">已完结<b id="qFin">0</b></span>
@@ -369,14 +371,14 @@ main{padding:11px}
 <div class="dmask" id="dmask"></div>
 <aside class="drawer" id="drawer">
   <div class="dhead">
-    <div class="dt">追更</div>
+    <div class="dt">PanFollow</div>
     <div class="ds" id="dSub">载入中…</div>
   </div>
   <div class="dcap">清单</div>
   <nav class="dnav">
     <div class="ditem on" data-t="mine">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2v6l4 2M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20Z"/></svg>
-      我的追更<em id="dMine">0</em>
+      我的订阅<em id="dMine">0</em>
     </div>
     <div class="ditem" data-t="discover">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
@@ -1146,7 +1148,7 @@ async function openDetail(slug){
   acts.push('<button id="aDir">' + (s.dest ? '改目录' : '目录') + '</button>');
   if (s.local) acts.push('<button id="aTidy">整理</button>');
   if (s.local) acts.push('<button id="aDel">删除</button>');
-  acts.push('<button id="aArch">' + (s.archived ? '恢复追更' : '标记完结') + '</button>');
+  acts.push('<button id="aArch">' + (s.archived ? '恢复订阅' : '标记完结') + '</button>');
   $('#shActs').innerHTML = acts.join('');
   $('#aSub').onclick = async function(){
     try{ await subscribe(slug, !s.subscribed); toast('已更新'); closeDetail(); lastSig = ''; load(); }
@@ -1243,7 +1245,7 @@ async function openDetail(slug){
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ slug: slug, on: to }) });
       if (!j.ok) throw new Error(j.error || '失败');
-      toast(to ? '已标记完结，文件保留' : '已恢复追更');
+      toast(to ? '已标记完结，文件保留' : '已恢复订阅');
       closeDetail(); lastSig = ''; load();
     }catch(e){ toast('操作失败：' + e.message); }
     finally{ arch.disabled = false; }
@@ -1404,7 +1406,7 @@ function sysNotify(ev){
   try{
     if (!('Notification' in window)) return;
     if (Notification.permission !== 'granted') return;
-    new Notification(ev.title || '追更', { body: ev.body || '', tag: 'kdocs', renotify: true });
+    new Notification(ev.title || 'PanFollow', { body: ev.body || '', tag: 'kdocs', renotify: true });
   }catch(e){}
 }
 
@@ -1678,8 +1680,8 @@ function closeDrawer(){
 }
 function setTab(t){
   tab = t; shown = PAGE; selMode = false; sel = {};
-  var names = { mine: '追更', discover: '发现', tasks: '任务', status: '状态' };
-  $('#pageTitle').textContent = names[t] || '追更';
+  var names = { mine: 'PanFollow', discover: '发现', tasks: '任务', status: '状态' };
+  $('#pageTitle').textContent = names[t] || 'PanFollow';
   document.querySelectorAll('.ditem[data-t]').forEach(function(x){
     x.classList.toggle('on', x.dataset.t === t);
   });
