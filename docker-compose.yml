@@ -1,0 +1,43 @@
+services:
+  # 全部功能都在这一个容器里：抓文档、选源、转存、下载、通知
+  web:
+    # 想用别人构建好的镜像（不本地构建）：
+    #   docker pull ghcr.io/<owner>/panfollow-nas:latest
+    #   IMAGE=ghcr.io/<owner>/panfollow-nas:latest docker compose up -d
+    image: ${IMAGE:-panfollow-nas:local}
+    build:
+      context: ./app
+      dockerfile: Dockerfile
+      args:
+        # 国内构建可加镜像加速：https://pypi.tuna.tsinghua.edu.cn/simple
+        PIP_INDEX_URL: ${PIP_INDEX_URL:-https://pypi.org/simple}
+        # BaiduPCS-Go 下载加速（留空走 GitHub，失败自动回退公共代理）
+        PCS_MIRROR: ${PCS_MIRROR:-}
+      # 用 GHCR 镜像时不需要本地构建
+    container_name: panfollow-web
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "8099:8099"
+    volumes:
+      - ./state:/state
+      # 下载落地目录（宿主机路径由 .env 的 DOWNLOAD_HOST_DIR 决定）
+      - ${DOWNLOAD_HOST_DIR:-/vol1/1000/Downloads}:/downloads
+      # 数据卷根目录：App 里要浏览/新建下载目录就需要它
+      - ${DATA_HOST_DIR:-/vol1/1000}:/mnt/data
+    shm_size: "1gb"
+
+  # ---- 以下为旧版遗留，正常部署不需要 ----
+  # aria2 / Alist 只服务早期版本，下载已全部由 BaiduPCS-Go 完成
+  aria2:
+    image: p3terx/aria2-pro:latest
+    container_name: panfollow-aria2
+    profiles: ["legacy"]
+    restart: "no"
+    environment:
+      - RPC_SECRET=${ARIA2_SECRET:-change-me}
+      - RPC_PORT=6800
+      - TZ=Asia/Shanghai
+    volumes:
+      - ./aria2-config:/config
+      - ${DOWNLOAD_HOST_DIR:-/vol1/1000/Downloads}:/downloads
