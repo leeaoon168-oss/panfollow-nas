@@ -32,7 +32,7 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 
 /**
- * 极薄的 WebView 壳：加载 NAS 上的追更服务。
+ * 极薄的 WebView 壳：加载 NAS 上的 PanFollow 服务。
  * 所有界面逻辑都在网页里，这里只负责容器、错误页、服务器地址和返回键。
  */
 public class MainActivity extends Activity {
@@ -309,7 +309,7 @@ public class MainActivity extends Activity {
 
         new AlertDialog.Builder(this)
                 .setTitle("服务器地址")
-                .setMessage("填 NAS 上追更服务的地址，例如 http://192.168.1.100:8099")
+                .setMessage("填 NAS 上 PanFollow 服务的地址，例如 http://192.168.1.100:8099")
                 .setView(input)
                 .setPositiveButton("保存并加载", (d, w) -> {
                     String v = input.getText().toString().trim();
