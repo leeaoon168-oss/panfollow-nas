@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#111318">
+<title>登录 kdocs</title>
+<style>
+  :root{--bg:#111318;--card:#191c23;--line:#282c36;--fg:#e8eaf0;--dim:#8b93a7;
+    --accent:#4f8cff;--ok:#33c27f;--err:#f2606a;--warn:#e5a54b}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);
+    font:15px/1.6 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif}
+  header{display:flex;align-items:center;gap:10px;padding:12px 14px;
+    border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--bg);z-index:5}
+  header a{color:var(--accent);text-decoration:none;font-size:14px}
+  h1{font-size:16px;margin:0;flex:1}
+  main{padding:14px}
+  .hint{font-size:13px;color:var(--dim);margin-bottom:12px;line-height:1.6}
+  .box{background:var(--card);border:1px solid var(--line);border-radius:14px;
+    padding:12px;margin-bottom:12px}
+  #shotWrap{display:flex;justify-content:center;min-height:160px;align-items:center}
+  #shot{max-width:100%;border-radius:10px;background:#fff;display:none}
+  #placeholder{color:var(--dim);font-size:13px;text-align:center;padding:30px 10px}
+  button{border:1px solid var(--line);background:var(--card);color:var(--fg);
+    padding:10px 16px;border-radius:10px;font-size:14px;width:100%;margin-top:8px}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  button:disabled{opacity:.45}
+  textarea{width:100%;height:88px;background:#0e1014;border:1px solid var(--line);
+    color:var(--fg);border-radius:10px;padding:10px;font:12px/1.5 monospace;resize:vertical}
+  .status{font-size:13px;margin-bottom:8px}
+  .ok{color:var(--ok)} .err{color:var(--err)} .warn{color:var(--warn)}
+  details summary{cursor:pointer;color:var(--dim);font-size:13px;padding:4px 0}
+  #toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);
+    background:#252a36;padding:10px 18px;border-radius:12px;font-size:13px;opacity:0;
+    transition:.25s;pointer-events:none;max-width:88vw;text-align:center}
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+<header>
+  <a href="/">← 返回</a>
+  <h1>登录 kdocs</h1>
+</header>
+<main>
+  <div class="hint">用手机 <b>微信扫一扫</b> 下面的二维码。登录成功后会自动保存，不用再改配置文件。</div>
+
+  <div class="box">
+    <div class="status" id="status">准备中…</div>
+    <div id="shotWrap">
+      <div id="placeholder">等待登录页加载…</div>
+      <img id="shot" alt="登录页截图">
+    </div>
+    <button id="btnStart" class="primary">重新发起扫码</button>
+  </div>
+
+  <div class="box">
+    <details>
+      <summary>二维码扫不出来？改用手动粘贴 Cookie</summary>
+      <textarea id="ck" placeholder="登录 kdocs.cn 后，F12 → Network → 任选一个 kdocs 请求 → 复制整段 Cookie: 后面的值"></textarea>
+      <button id="btnSave">保存 Cookie</button>
+    </details>
+  </div>
+</main>
+<div id="toast"></div>
+
+<script>
+const $ = s => document.querySelector(s);
+let timer = null, srcTimer = null, lastShot = 0;
+
+function toast(m, ms = 3000){
+  const t = $('#toast'); t.textContent = m; t.classList.add('show');
+  clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), ms);
+}
+
+async function post(p, body){
+  const r = await fetch(p, {method:'POST', headers:{'Content-Type':'application/json'},
+                            body: body ? JSON.stringify(body) : undefined});
+  return r.json();
+}
+
+function setStatus(s){
+  const el = $('#status');
+  if (s.logged_in) { el.className = 'status ok'; el.textContent = '✅ 登录成功，Cookie 已保存'; }
+  else if (s.error) { el.className = 'status err'; el.textContent = '❌ ' + s.error; }
+  else if (s.running) { el.className = 'status warn';
+    el.textContent = `⏳ 等待扫码… ${s.expires_in > 0 ? s.expires_in + ' 秒后过期' : ''} ${s.hint || ''}`; }
+  else if (s.has_cookie) { el.className = 'status ok'; el.textContent = '已保存过 Cookie，可以直接用'; }
+  else { el.className = 'status'; el.textContent = s.hint || '未登录'; }
+}
+
+async function poll(){
+  let s;
+  try { s = await fetch('/api/login/status').then(r => r.json()); }
+  catch(e){ return; }
+
+  setStatus(s);
+
+  const img = $('#shot');
+  if (s.running){
+    if (s.shot_mtime && s.shot_mtime !== lastShot){
+      lastShot = s.shot_mtime;
+      img.src = '/api/login/shot?t=' + lastShot;
+      img.style.display = 'block';
+      $('#placeholder').style.display = 'none';
+    }
+    if (!srcTimer) srcTimer = setInterval(poll, 1500);
+  } else {
+    clearInterval(srcTimer); srcTimer = null;
+  }
+
+  if (s.logged_in){
+    clearInterval(srcTimer); srcTimer = null;
+    toast('登录成功，正在返回…');
+    setTimeout(() => location.href = '/', 1200);
+  }
+}
+
+$('#btnStart').onclick = async () => {
+  lastShot = 0;
+  $('#shot').style.display = 'none';
+  $('#placeholder').style.display = 'block';
+  $('#placeholder').textContent = '正在打开登录页…';
+  const r = await post('/api/login/start');
+  if (r.note) toast(r.note);
+  poll();
+};
+
+$('#btnSave').onclick = async () => {
+  const v = $('#ck').value.trim();
+  if (!v) return toast('先粘贴 Cookie');
+  const r = await post('/api/login/cookie', {cookie: v});
+  if (r.ok){ toast('已保存'); setTimeout(() => location.href = '/', 900); }
+  else toast('保存失败: ' + r.error);
+};
+
+// 进页面就自动开一轮
+(async () => {
+  const s = await fetch('/api/login/status').then(r => r.json());
+  if (!s.running && !s.has_cookie) await post('/api/login/start');
+  poll();
+  setInterval(poll, 2000);
+})();
+</script>
+</body>
+</html>
