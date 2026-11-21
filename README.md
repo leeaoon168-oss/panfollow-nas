@@ -13,7 +13,10 @@
 你在文档里维护"剧名 + 网盘分享链接"，这个服务定时读取它，把**本地还没有的集数**自动下载到 NAS 目录，并在手机 App / 微信里通知你。
 
 <p align="center">
-  <img src="docs/images/screenshot-list.png" width="240" alt="剧集列表">
+  <img src="docs/images/demo.gif" width="300" alt="演示：列表 → 筛选 → 详情 → 来源">
+</p>
+
+<p align="center">
   <img src="docs/images/screenshot-detail.png" width="240" alt="详情">
   <img src="docs/images/screenshot-settings.png" width="240" alt="设置">
 </p>
