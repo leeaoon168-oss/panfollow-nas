@@ -4,6 +4,7 @@
 [![CI](https://github.com/leeaoon168-oss/panfollow-nas/actions/workflows/ci.yml/badge.svg)](https://github.com/leeaoon168-oss/panfollow-nas/actions/workflows/ci.yml)
 [![ghcr](https://img.shields.io/badge/ghcr.io-panfollow--nas-2496ED?logo=docker&logoColor=white)](https://github.com/leeaoon168-oss/panfollow-nas/pkgs/container/panfollow-nas)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![fnOS](https://img.shields.io/badge/开发与验证-fnOS%20%E9%A3%9E%E7%89%9B-4FD3A0)](https://www.fnnas.com/)
 
 > 盘追 · 挂在 NAS 上，自动追网盘分享里的新集
 > 仓库：`panfollow-nas`
@@ -66,8 +67,12 @@
 ## 前置条件
 
 1. 一台跑 Docker 的 NAS / Linux 主机（**单容器，不需要 Alist、不需要 aria2**）
+   - 本项目在 **飞牛 fnOS** 上开发与验证；群晖、威联通、TrueNAS、普通 Linux 同样可用（只是宿主机路径不同）
 2. 一个**百度网盘 SVIP** 账号（转存和高速下载都要求会员）
 3. 一份你自己的 kdocs 文档或表格（当作追更清单）
+
+> 在飞牛 fnOS 上：应用中心装好 Docker → SSH 进 NAS → 下面几步；
+> 下载目录填 `/vol1/1000/...` 这类 fnOS 路径即可。
 
 ## 快速开始
 
