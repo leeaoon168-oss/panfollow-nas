@@ -1,0 +1,997 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0A0C10">
+<title>设置 · 追更</title>
+<style>
+/* ============ 设计变量（与主界面共用同一套） ============ */
+:root{
+  --bg:#0A0C10; --s1:#11151C; --s2:#161B24; --s3:#1D232E;
+  --line:#222936; --line2:#2C3544;
+  --fg:#EDF0F6; --fg2:#A6AEBF; --fg3:#6C7789;
+  --acc:#5B8DEF; --acc-weak:rgba(91,141,239,.14);
+  --ok:#35C48C; --warn:#E0A44E; --err:#F0606A;
+  --ok-weak:rgba(53,196,140,.13); --warn-weak:rgba(224,164,78,.13); --err-weak:rgba(240,96,106,.13);
+  --r-s:8px; --r-m:12px; --r-l:16px;
+  --safe-b:env(safe-area-inset-bottom,0px);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0;background:var(--bg);color:var(--fg);
+  font:15px/1.55 -apple-system,BlinkMacSystemFont,"PingFang SC","HarmonyOS Sans SC","Microsoft YaHei",sans-serif;
+  font-feature-settings:"tnum";
+  padding-bottom:calc(84px + var(--safe-b));
+}
+code{background:#0D1117;border:1px solid var(--line);padding:1px 5px;border-radius:5px;
+  font-size:12px;color:#9FB4D6;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;word-break:break-all}
+
+/* ============ 顶栏 ============ */
+.top{position:sticky;top:0;z-index:30;
+  background:linear-gradient(180deg,rgba(10,12,16,.98),rgba(10,12,16,.92));
+  backdrop-filter:saturate(160%) blur(18px);-webkit-backdrop-filter:saturate(160%) blur(18px);
+  border-bottom:1px solid var(--line);
+  padding:calc(10px + env(safe-area-inset-top,0px)) 16px 10px}
+.toprow{display:flex;align-items:center;gap:12px;max-width:1080px;margin:0 auto}
+.back{display:flex;align-items:center;justify-content:center;width:32px;height:32px;flex:0 0 auto;
+  border-radius:9px;border:1px solid var(--line2);background:var(--s1);color:var(--fg2);
+  text-decoration:none;font-size:15px}
+.back:active{background:var(--s2)}
+.ttl{flex:1;min-width:0}
+.ttl h1{margin:0;font-size:16.5px;font-weight:700;letter-spacing:.3px}
+.ttl p{margin:2px 0 0;font-size:11.5px;color:var(--fg3)}
+.hstat{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--fg3);
+  padding:5px 10px;border-radius:20px;border:1px solid var(--line);background:var(--s1);white-space:nowrap}
+.hstat .d{width:6px;height:6px;border-radius:50%;background:var(--fg3)}
+.hstat.ok .d{background:var(--ok)} .hstat.err .d{background:var(--err)} .hstat.warn .d{background:var(--warn)}
+
+/* ============ 布局 ============ */
+.wrap{max-width:1080px;margin:0 auto;padding:14px 16px 0;display:block}
+.sidenav{display:none}
+main{min-width:0}
+
+/* 移动端：横向 chip 导航 */
+.navchips{position:sticky;top:calc(52px + env(safe-area-inset-top,0px));z-index:20;
+  display:flex;gap:7px;overflow-x:auto;padding:9px 16px;margin:0 -16px 4px;
+  background:rgba(10,12,16,.96);backdrop-filter:blur(14px);
+  border-bottom:1px solid var(--line);scrollbar-width:none}
+.navchips::-webkit-scrollbar{display:none}
+.navchips a{flex:0 0 auto;font-size:12.5px;color:var(--fg2);text-decoration:none;
+  padding:6px 12px;border-radius:16px;border:1px solid var(--line2);background:var(--s1)}
+.navchips a.on{color:#fff;background:var(--acc);border-color:var(--acc);font-weight:600}
+
+/* 分组 */
+.group{margin:22px 0 4px;scroll-margin-top:110px}
+.group:first-of-type{margin-top:6px}
+.ghead{display:flex;align-items:baseline;gap:9px;margin:0 2px 9px}
+.ghead b{font-size:13px;font-weight:700;color:var(--fg)}
+.ghead span{font-size:11.5px;color:var(--fg3)}
+
+/* ============ 卡片 ============ */
+.card{background:var(--s1);border:1px solid var(--line);border-radius:var(--r-l);
+  margin-bottom:11px;overflow:hidden}
+.chead{display:flex;align-items:flex-start;gap:11px;padding:14px 15px 12px}
+.chead .ci{width:30px;height:30px;flex:0 0 auto;border-radius:9px;background:var(--s3);
+  display:flex;align-items:center;justify-content:center;color:#8FA3C0}
+.chead .ct{flex:1;min-width:0}
+.chead h3{margin:0;font-size:14px;font-weight:650;letter-spacing:.2px}
+.chead p{margin:3px 0 0;font-size:11.5px;color:var(--fg3);line-height:1.5}
+.tag{flex:0 0 auto;font-size:10.5px;font-weight:600;padding:3px 8px;border-radius:20px;
+  border:1px solid var(--line2);color:var(--fg3);background:var(--s2);white-space:nowrap}
+.tag.ok{color:var(--ok);border-color:#215040;background:var(--ok-weak)}
+.tag.warn{color:var(--warn);border-color:#4E3D1E;background:var(--warn-weak)}
+.tag.err{color:var(--err);border-color:#4E2529;background:var(--err-weak)}
+
+.cbody{padding:0 15px 14px}
+.cfoot{display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+  padding:11px 15px calc(12px + 0px);border-top:1px solid var(--line);background:rgba(0,0,0,.14)}
+.cfoot .st{margin:0;flex:1 1 100%;font-size:11.5px;line-height:1.6}
+
+/* ============ 表单 ============ */
+.field{margin-top:12px}
+.field:first-child{margin-top:2px}
+.field > label{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--fg2);
+  font-weight:500;margin-bottom:6px}
+.field > label .opt{font-size:10.5px;color:var(--fg3);font-weight:400}
+input,select,textarea{
+  width:100%;background:#0D1117;border:1px solid var(--line2);color:var(--fg);
+  border-radius:10px;padding:11px 12px;font-size:15px;outline:0;font-family:inherit;
+  transition:border-color .15s,box-shadow .15s;-webkit-appearance:none;appearance:none}
+input:focus,select:focus,textarea:focus{border-color:#3E5C8C;box-shadow:0 0 0 3px rgba(91,141,239,.14)}
+input::placeholder,textarea::placeholder{color:#4C5566}
+textarea{resize:vertical;min-height:72px;font-size:13px;line-height:1.55;
+  font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+select{background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236C7789' stroke-width='2.4' stroke-linecap='round'><path d='m6 9 6 6 6-6'/></svg>");
+  background-repeat:no-repeat;background-position:right 12px center;padding-right:34px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.hint{font-size:11.5px;color:var(--fg3);margin-top:7px;line-height:1.65}
+.hint.ok{color:var(--ok)} .hint.err{color:var(--err)} .hint.warn{color:var(--warn)}
+.hint b{color:var(--fg2);font-weight:600}
+
+/* ============ 按钮 ============ */
+.btn{height:36px;padding:0 15px;border:1px solid var(--line2);border-radius:9px;
+  background:var(--s2);color:var(--fg);font-size:13px;font-weight:600;font-family:inherit;
+  display:inline-flex;align-items:center;gap:6px;cursor:pointer;transition:.14s;white-space:nowrap}
+.btn:active{transform:scale(.97)}
+.btn:disabled{opacity:.45}
+.btn.pri{background:var(--acc);border-color:var(--acc);color:#fff}
+.btn.ghost{background:transparent;color:var(--fg2)}
+.btn.danger{color:var(--err);border-color:#4E2529;background:var(--err-weak)}
+.btn.sm{height:30px;padding:0 11px;font-size:12px;border-radius:8px}
+.btn.block{width:100%;justify-content:center}
+.btn .sp{width:13px;height:13px;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;
+  border-radius:50%;animation:spin .8s linear infinite;display:none}
+.btn.busy .sp{display:block}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ============ 状态总览 ============ */
+.ov{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin:4px 0 6px}
+.ovc{background:var(--s1);border:1px solid var(--line);border-radius:var(--r-m);padding:11px 12px}
+.ovc .ok1{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--fg3)}
+.ovc .ok1 .d{width:6px;height:6px;border-radius:50%;background:var(--fg3)}
+.ovc.ok .ok1 .d{background:var(--ok)} .ovc.err .ok1 .d{background:var(--err)}
+.ovc.warn .ok1 .d{background:var(--warn)}
+.ovc .v{font-size:15px;font-weight:650;margin-top:5px;line-height:1.25;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ovc:last-child:nth-child(odd){grid-column:1/-1}
+.ovc .s{font-size:10.5px;color:var(--fg3);margin-top:2px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* ============ 文档列表 ============ */
+.docrow{display:flex;align-items:flex-start;gap:9px;padding:11px 0;border-bottom:1px solid var(--line)}
+.docrow:last-child{border-bottom:0}
+.docrow .dm{flex:1;min-width:0}
+.docrow .d1{font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px}
+.docrow .d1 .tag{padding:1px 6px;font-size:10px}
+.docrow .d2{font-size:11px;color:var(--fg3);margin-top:4px;word-break:break-all;line-height:1.55}
+.docrow .dact{display:flex;gap:6px;flex:0 0 auto}
+
+/* 行内链接按钮（替换旧的整行 a 标签） */
+.linkline{display:flex;align-items:center;justify-content:space-between;gap:10px;
+  margin-top:12px;padding:11px 13px;border:1px solid var(--line2);border-radius:10px;
+  background:var(--s2);text-decoration:none;color:var(--fg);font-size:13px;font-weight:600}
+.linkline:active{background:var(--s3)}
+.linkline span.ar{color:var(--fg3);font-size:13px}
+
+/* ============ 底部保存条 ============ */
+.savebar{position:fixed;left:0;right:0;bottom:0;z-index:40;
+  padding:10px 16px calc(10px + var(--safe-b));
+  background:rgba(10,12,16,.95);backdrop-filter:blur(18px);
+  border-top:1px solid var(--line)}
+.savebar .in{max-width:1080px;margin:0 auto;display:flex;align-items:center;gap:10px}
+.savebar .msg{flex:1;min-width:0;font-size:11.5px;color:var(--fg3);line-height:1.5}
+.savebar .msg.err{color:var(--err)} .savebar .msg.ok{color:var(--ok)}
+
+/* ============ 目录选择弹窗 ============ */
+.mask{position:fixed;inset:0;background:rgba(0,0,0,.62);display:none;align-items:center;
+  justify-content:center;padding:20px;z-index:70}
+.mask.show{display:flex}
+.dlg{width:100%;max-width:380px;background:#131822;border:1px solid var(--line2);
+  border-radius:18px;overflow:hidden;display:flex;flex-direction:column;max-height:76vh;
+  box-shadow:0 24px 60px rgba(0,0,0,.6)}
+.dlg .dh{padding:13px 15px;border-bottom:1px solid var(--line);font-size:11.5px;
+  color:var(--fg3);word-break:break-all;background:rgba(0,0,0,.2)}
+.dlg .dl{overflow:auto;flex:1;min-height:140px}
+.dirow{display:flex;align-items:center;gap:9px;padding:12px 15px;font-size:13.5px;
+  border-bottom:1px solid rgba(255,255,255,.04);color:var(--fg2)}
+.dirow:active{background:var(--s3)}
+.dirow .ico{color:var(--fg3);font-size:12px}
+.dlg .df{display:flex;gap:9px;padding:12px 14px;border-top:1px solid var(--line)}
+.dlg .df .btn{flex:1;justify-content:center;height:40px}
+
+/* toast */
+#toast{position:fixed;left:50%;bottom:calc(86px + var(--safe-b));transform:translateX(-50%) translateY(10px);
+  background:#232A36;color:var(--fg);padding:10px 16px;border-radius:11px;font-size:12.5px;
+  opacity:0;transition:.2s;pointer-events:none;max-width:88vw;text-align:center;z-index:80;
+  box-shadow:0 12px 30px rgba(0,0,0,.5);line-height:1.5}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ============ 桌面端 ============ */
+@media (min-width:900px){
+  body{padding-bottom:calc(80px + var(--safe-b))}
+  .wrap{display:grid;grid-template-columns:196px minmax(0,1fr);gap:26px;padding-top:20px}
+  .navchips{display:none}
+  .sidenav{display:block;position:sticky;top:calc(78px + env(safe-area-inset-top,0px));
+    align-self:start;padding-top:2px}
+  .sidenav .nt{font-size:10.5px;color:var(--fg3);letter-spacing:.6px;
+    text-transform:uppercase;margin:0 0 8px 10px}
+  .sidenav a{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:8px;
+    color:var(--fg2);text-decoration:none;font-size:13px;margin-bottom:1px}
+  .sidenav a:hover{background:var(--s1);color:var(--fg)}
+  .sidenav a.on{background:var(--acc-weak);color:#9CBCF6;font-weight:600}
+  .sidenav a .d{width:5px;height:5px;border-radius:50%;background:currentColor;opacity:.5}
+  .ov{grid-template-columns:repeat(5,minmax(0,1fr))}
+  .ovc:last-child:nth-child(odd){grid-column:auto}
+  .group{margin-top:26px}
+  .card{margin-bottom:13px}
+  .row2{grid-template-columns:1fr 1fr}
+}
+@media (max-width:360px){
+  .row2{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="toprow">
+    <a class="back" href="/" aria-label="返回">←</a>
+    <div class="ttl">
+      <h1>设置</h1>
+      <p>连接 · 下载 · 来源 · 通知 · 助手</p>
+    </div>
+    <div class="hstat" id="hstat"><i class="d"></i><span>读取中</span></div>
+  </div>
+</header>
+
+<nav class="navchips" id="navchips">
+  <a href="#g-overview" class="on">总览</a>
+  <a href="#g-conn">连接</a>
+  <a href="#g-dl">下载</a>
+  <a href="#g-docs">文档</a>
+  <a href="#g-src">来源</a>
+  <a href="#g-ai">AI</a>
+  <a href="#g-notify">通知</a>
+  <a href="#g-sys">系统</a>
+</nav>
+
+<div class="wrap">
+  <nav class="sidenav" id="sidenav">
+    <div class="nt">设置项</div>
+    <a href="#g-overview" class="on"><i class="d"></i>总览</a>
+    <a href="#g-conn"><i class="d"></i>连接与账号</a>
+    <a href="#g-dl"><i class="d"></i>下载与存储</a>
+    <a href="#g-docs"><i class="d"></i>资源文档</a>
+    <a href="#g-src"><i class="d"></i>来源与选优</a>
+    <a href="#g-ai"><i class="d"></i>AI 辅助</a>
+    <a href="#g-notify"><i class="d"></i>消息通知</a>
+    <a href="#g-sys"><i class="d"></i>系统与客户端</a>
+  </nav>
+
+  <main>
+    <!-- ========== 总览 ========== -->
+    <section class="group" id="g-overview">
+      <div class="ov">
+        <div class="ovc" id="ov-alist"><div class="ok1"><i class="d"></i>Alist</div>
+          <div class="v" id="ov-alist-v">—</div><div class="s" id="ov-alist-s">检查中</div></div>
+        <div class="ovc" id="ov-baidu"><div class="ok1"><i class="d"></i>百度网盘</div>
+          <div class="v" id="ov-baidu-v">—</div><div class="s" id="ov-baidu-s">检查中</div></div>
+        <div class="ovc" id="ov-disk"><div class="ok1"><i class="d"></i>磁盘剩余</div>
+          <div class="v" id="ov-disk-v">—</div><div class="s" id="ov-disk-s">—</div></div>
+        <div class="ovc" id="ov-notify"><div class="ok1"><i class="d"></i>通知</div>
+          <div class="v" id="ov-notify-v">—</div><div class="s" id="ov-notify-s">—</div></div>
+        <div class="ovc" id="ov-ai"><div class="ok1"><i class="d"></i>AI 仲裁</div>
+          <div class="v" id="ov-ai-v">—</div><div class="s" id="ov-ai-s">—</div></div>
+      </div>
+    </section>
+
+    <!-- ========== 连接 ========== -->
+    <section class="group" id="g-conn">
+      <div class="ghead"><b>连接与账号</b><span>网盘、Alist</span></div>
+
+      <div class="card">
+        <div class="chead">
+          <div class="ci"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></div>
+          <div class="ct"><h3>百度网盘</h3><p>转存分享、下载文件都靠它，必须有 STOKEN</p></div>
+          <span class="tag" id="tag-baidu">未检查</span>
+        </div>
+        <div class="cbody">
+          <div class="field">
+            <label for="bduss">BDUSS <span class="opt">可粘贴整段 Cookie，自动提取</span></label>
+            <textarea id="bduss" rows="3" autocomplete="off" autocorrect="off"
+              autocapitalize="off" spellcheck="false" data-lpignore="true"
+              placeholder="BDUSS=xxxx…  或整段 Cookie"></textarea>
+            <div class="hint" id="bdussInfo">粘贴后这里会显示识别到多少字符，用来确认没被截断。</div>
+          </div>
+          <div class="field">
+            <label for="stoken">STOKEN <span class="opt">转存必需</span></label>
+            <input id="stoken" type="text" autocomplete="off" spellcheck="false" data-lpignore="true"
+              placeholder="DevTools → Application → Cookies → pan.baidu.com → STOKEN">
+            <div class="hint">保存在 NAS 的 <code>/state/settings.json</code>，不会上传到任何地方。留空表示不修改。</div>
+          </div>
+        </div>
+        <div class="cfoot">
+          <button class="btn" id="verify"><i class="sp"></i>保存并验证下载</button>
+          <div class="hint" style="flex:1 1 100%;margin:0">会先保存，再用清单里的第一个百度分享真实拉 320 字节——能拉到才算真的能下。</div>
+          <div class="st" id="vst"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="chead">
+          <div class="ci"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2" y="4" width="20" height="7" rx="2"/><rect x="2" y="13" width="20" height="7" rx="2"/><path d="M6 7.5h.01M6 16.5h.01"/></svg></div>
+          <div class="ct"><h3>Alist</h3><p>负责把分享转成直链，凭据错误会影响全部下载</p></div>
+          <span class="tag" id="tag-alist">未检查</span>
+        </div>
+        <div class="cbody">
+          <div class="field">
+            <label for="url">服务地址</label>
+            <input id="url" placeholder="http://192.168.1.100:5244">
+          </div>
+          <div class="row2">
+            <div class="field">
+              <label for="user">用户名</label>
+              <input id="user" placeholder="admin">
+            </div>
+            <div class="field">
+              <label for="pass">密码</label>
+              <input id="pass" type="password" placeholder="Alist 管理员密码">
+            </div>
+          </div>
+        </div>
+        <div class="cfoot">
+          <div class="st" id="st"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== 下载 ========== -->
+    <section class="group" id="g-dl">
+      <div class="ghead"><b>下载与存储</b><span>落盘位置、空间保护</span></div>
+
+      <div class="card">
+        <div class="chead">
+          <div class="ci"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/></svg></div>
+          <div class="ct"><h3>下载目录</h3><p>剧集会存到「目录 / 剧名 /」下</p></div>
+        </div>
+        <div class="cbody">
+          <div class="hint" id="dlInfo" style="margin-top:0">当前：—</div>
+        </div>
+        <div class="cfoot">
+          <button class="btn" id="pickDir">浏览并选择</button>
+          <span class="hint" style="flex:1;margin:0">换目录后，已下载的文件仍在原位置。</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="chead">
+          <div class="ci"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2 2 7v10l10 5 10-5V7Z"/><path d="M12 22V12M2 7l10 5 10-5"/></svg></div>
+          <div class="ct"><h3>磁盘保护</h3><p>空间不足时自动暂停，避免把 NAS 撑爆</p></div>
+        </div>
+        <div class="cbody">
+          <div class="field">
+            <label for="minfree">剩余空间低于（GB）就暂停</label>
+            <input id="minfree" type="text" inputmode="numeric" placeholder="20">
+            <div class="hint" id="diskInfo">填 0 表示不限制。</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== 文档 ========== -->
+    <section class="group" id="g-docs">
+      <div class="ghead"><b>资源文档</b><span>kdocs 文档 / 表格</span></div>
+      <div class="card">
+        <div class="chead">
+          <div class="ci"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6M8 13h8M8 17h5"/></svg></div>
+          <div class="ct"><h3>已接入的文档</h3><p>多份文档会合并成同一份清单，同名剧自动变成多个来源</p></div>
+          <span class="tag" id="tag-docs">—</span>
+        </div>
+        <div class="cbody">
+          <div id="docs"><div class="hint" style="margin:0">读取中…</div></div>
+          <div class="field">
+            <label for="doc_url">新增文档链接</label>
+            <input id="doc_url" placeholder="https://www.kdocs.cn/l/xxxxx">
+          </div>
+          <div class="field">
+            <label for="doc_name">备注名 <span class="opt">可选</span></label>
+            <input id="doc_name" placeholder="如「备用清单」">
+          </div>
+        </div>
+        <div class="cfoot">
+          <button class="btn" id="doc_add">添加文档</button>
+          <div class="st" id="doc_st"></div>
+          <div class="hint" style="flex:1 1 100%;margin:0">共用一个登录态；某份文档需要别的账号才能看时，先去「系统与客户端 → kdocs 扫码登录」切换。</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== 来源 ========== -->
+    <section class="group" id="g-src">
+      <div class="ghead"><b>来源与选优</b><span>多个链接时怎么挑</span></div>
+      <div class="card">
+        <div class="chead">
+          <div class="ci"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h12"/></svg></div>
+          <div class="ct"><h3>自动选优</h3><p>每部剧可以挂多个来源，按规则挑最合适的那个</p></div>
+        </div>
+        <div class="cbody">
+          <div class="field">
+            <label for="auto_pick">选择策略</label>
+            <select id="auto_pick">
+              <option value="1">自动（每次检查重挑最优来源）</option>
+              <option value="0">手动（只用我选中的那个）</option>
+            </select>
+            <div class="hint">
+              缺集时以「能补齐」为先：能覆盖总集数的来源里挑画质最好的；都补不齐就选集数最多的。<br>
+              在剧里「锁定」某个来源后，自动切换不会覆盖它。
+            </div>
+          </div>
+        </div>
+        <div class="cfoot">
+          <button class="btn" id="ap_save">保存来源设置</button>
+          <div class="st" id="ap_st"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== AI ========== -->
+    <section class="group" id="g-ai">
+      <div class="ghead"><b>AI 辅助</b><span>可选</span></div>
+      <div class="card">
+        <div class="chead">
+          <div class="ci"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/><circle cx="12" cy="12" r="3.2"/></svg></div>
+          <div class="ct"><h3>DeepSeek 仲裁</h3><p>规则分不出高下时才问 AI，挂了自动回退</p></div>
+          <span class="tag" id="tag-ai">未开启</span>
+        </div>
+        <div class="cbody">
+          <div class="field">
+            <label for="ai_en">开关</label>
+            <select id="ai_en">
+              <option value="">关闭（只用规则）</option>
+              <option value="1">开启</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="ai_key">API Key</label>
+            <input id="ai_key" type="password" autocomplete="off" spellcheck="false" placeholder="sk-…">
+          </div>
+          <div class="row2">
+            <div class="field">
+              <label for="ai_base">Base URL</label>
+              <input id="ai_base" type="text" placeholder="https://api.deepseek.com">
+            </div>
+            <div class="field">
+              <label for="ai_model">模型 <a id="ai_refresh" style="margin-left:auto;color:var(--acc);font-size:11.5px;text-decoration:none">刷新</a></label>
+              <select id="ai_model"><option value="">（先填 Key 再刷新）</option></select>
+            </div>
+          </div>
+          <div class="field">
+            <input id="ai_model_custom" type="text" placeholder="自定义模型名" style="display:none">
+          </div>
+        </div>
+        <div class="cfoot">
+          <button class="btn" id="ai_save">保存 AI 配置</button>
+          <button class="btn ghost" id="ai_test">测试连通性</button>
+          <div class="st" id="ai_st"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== 通知 ========== -->
+    <section class="group" id="g-notify">
+      <div class="ghead"><b>消息通知</b><span>下载完成 / 失败 / 来源切换</span></div>
+      <div class="card">
+        <div class="chead">
+          <div class="ci"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg></div>
+          <div class="ct"><h3>推送渠道</h3><p>App 内通知无需配置；这里配的是微信 / 邮件等外部渠道</p></div>
+          <span class="tag" id="tag-notify">未配置</span>
+        </div>
+        <div class="cbody">
+          <div class="field">
+            <label for="ntype">渠道</label>
+            <select id="ntype">
+              <option value="">不通知（只用 App 内通知）</option>
+              <option value="wxmp">微信公众号测试号 · 微信直达</option>
+              <option value="wework_app">企业微信自建应用</option>
+              <option value="wecom">企业微信群机器人</option>
+              <option value="email">邮件（配 QQ 邮箱提醒）</option>
+              <option value="pushplus">PushPlus</option>
+              <option value="wxpusher">WxPusher</option>
+              <option value="serverchan">Server酱</option>
+              <option value="bark">Bark（iOS）</option>
+              <option value="webhook">自定义 Webhook</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="nkey">密钥 / 地址</label>
+            <input id="nkey" type="text" autocomplete="off" spellcheck="false" placeholder="按所选渠道的格式填写">
+            <div class="hint">
+              <b>公众号测试号</b> appid:secret:template_id:openid ·
+              <b>企业微信应用</b> corpid:secret:agentid ·
+              <b>群机器人</b> Webhook 地址或 key ·
+              <b>邮件</b> smtp主机:端口:账号:授权码:收件人
+            </div>
+          </div>
+        </div>
+        <div class="cfoot">
+          <button class="btn" id="ntest">发送测试通知</button>
+          <div class="st" id="nst"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== 系统 ========== -->
+    <section class="group" id="g-sys">
+      <div class="ghead"><b>系统与客户端</b><span>登录态、App、运行环境</span></div>
+
+      <div class="card">
+        <div class="chead">
+          <div class="ci"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 8h8v8H8z"/></svg></div>
+          <div class="ct"><h3>kdocs 登录</h3><p>文档公开时无需登录；变私有再来扫码</p></div>
+          <span class="tag" id="tag-kdocs">公开</span>
+        </div>
+        <div class="cbody">
+          <a class="linkline" href="/login"><span>打开扫码登录</span><span class="ar">→</span></a>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="chead">
+          <div class="ci"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="6" y="2" width="12" height="20" rx="3"/><path d="M11 18h2"/></svg></div>
+          <div class="ct"><h3>安卓 App</h3><p>全屏无地址栏，支持后台通知</p></div>
+        </div>
+        <div class="cbody">
+          <a class="linkline" href="/app.apk"><span>下载 APK</span><span class="ar">↓</span></a>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="chead">
+          <div class="ci"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg></div>
+          <div class="ct"><h3>运行环境</h3><p>只读信息，用于排查问题</p></div>
+        </div>
+        <div class="cbody">
+          <div class="hint" id="env" style="margin:0;line-height:1.9">读取中…</div>
+        </div>
+      </div>
+    </section>
+
+    <div style="height:10px"></div>
+  </main>
+</div>
+
+<!-- 底部统一保存 -->
+<div class="savebar">
+  <div class="in">
+    <div class="msg" id="saveMsg">修改后记得保存</div>
+    <button class="btn" id="verify2" style="display:none"></button>
+    <button class="btn pri" id="save"><i class="sp"></i>保存更改</button>
+  </div>
+</div>
+
+<!-- 目录选择 -->
+<div class="mask" id="dirMask">
+  <div class="dlg">
+    <div class="dh" id="dirHead">/mnt/data</div>
+    <div class="dl" id="dirList"></div>
+    <div class="df">
+      <button class="btn" id="dirCancel">取消</button>
+      <button class="btn pri" id="dirPick">选这个目录</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+<div style="display:none"><button id="verifyHidden"></button></div>
+
+<script>
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+function toast(m, ms=3000){ const t=$('#toast'); t.textContent=m; t.classList.add('show');
+  clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('show'), ms); }
+function busy(btn, on, label){
+  if (!btn) return;
+  btn.disabled = on;
+  btn.classList.toggle('busy', on);
+  if (label) { if (on) { btn.dataset._l = btn.dataset._l || btn.textContent; btn.childNodes[btn.childNodes.length-1].textContent = label; }
+               else if (btn.dataset._l) { btn.childNodes[btn.childNodes.length-1].textContent = btn.dataset._l; } }
+}
+const NOTIFY_LABEL = {wxmp:'公众号测试号', wework_app:'企业微信应用', wecom:'企业微信群机器人',
+  email:'邮件', pushplus:'PushPlus', wxpusher:'WxPusher', serverchan:'Server酱',
+  bark:'Bark', webhook:'Webhook'};
+
+/* ---------- 总览 ---------- */
+function setOv(id, cls, v, s){
+  const box = $('#ov-' + id);
+  box.classList.remove('ok','warn','err'); if (cls) box.classList.add(cls);
+  $('#ov-' + id + '-v').textContent = v;
+  $('#ov-' + id + '-s').textContent = s || '';
+}
+function setTag(id, cls, text){
+  const el = $('#tag-' + id); if (!el) return;
+  el.className = 'tag' + (cls ? ' ' + cls : ''); el.textContent = text;
+}
+function topStat(cls, text){
+  const el = $('#hstat'); el.className = 'hstat' + (cls ? ' ' + cls : '');
+  el.querySelector('span').textContent = text;
+}
+
+/* ---------- 文档 ---------- */
+async function loadDocs(){
+  const d = await (await fetch('/api/documents')).json();
+  const box = $('#docs');
+  const n = (d.docs || []).length, on = (d.docs || []).filter(x => x.enabled).length;
+  setTag('docs', on ? 'ok' : (n ? 'warn' : ''), n ? (on + ' / ' + n + ' 启用') : '无');
+  if (!n){ box.innerHTML = '<div class="hint" style="margin:0">还没有文档，先在下面添加一份。</div>'; return; }
+  box.innerHTML = d.docs.map(x => {
+    const when = x.last_refresh
+      ? new Date(x.last_refresh * 1000).toLocaleString('zh-CN', {hour12:false}).slice(5,16)
+      : '未抓取';
+    return '<div class="docrow">'
+      + '<div class="dm"><div class="d1">' + (x.name || '文档')
+      + ' <span class="tag ' + (x.enabled ? 'ok' : '') + '">' + (x.enabled ? '启用' : '停用') + '</span>'
+      + '</div><div class="d2">' + x.url + '<br>' + when + ' · ' + (x.last_count || 0) + ' 条'
+      + (x.last_error ? ' · <span style="color:var(--err)">' + x.last_error.slice(0,40) + '</span>' : '')
+      + '</div></div>'
+      + '<div class="dact">'
+      + '<button class="btn sm" data-a="toggle" data-id="' + x.id + '">' + (x.enabled ? '停用' : '启用') + '</button>'
+      + '<button class="btn sm danger" data-a="del" data-id="' + x.id + '">删</button>'
+      + '</div></div>';
+  }).join('');
+}
+$('#docs').addEventListener('click', async (e) => {
+  const el = e.target.closest('[data-a]');
+  if (!el) return;
+  const id = parseInt(el.dataset.id, 10);
+  if (el.dataset.a === 'del'){
+    if (!confirm('删除这份文档？（已抓到的剧不会删）')) return;
+    await fetch('/api/documents/delete', {method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({id})});
+  } else {
+    const on = el.textContent.trim() === '停用';
+    await fetch('/api/documents/toggle', {method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({id, enabled: on ? 0 : 1})});
+  }
+  await loadDocs();
+});
+
+$('#doc_add').onclick = async () => {
+  const url = $('#doc_url').value.trim();
+  const name = $('#doc_name').value.trim();
+  if (!url){ $('#doc_st').className = 'st err'; $('#doc_st').textContent = '先填链接'; return; }
+  busy($('#doc_add'), true, '添加中…');
+  try{
+    const r = await fetch('/api/documents', {method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({url, name})});
+    const d = await r.json();
+    $('#doc_st').className = 'st ' + (d.ok ? 'ok' : 'err');
+    $('#doc_st').textContent = d.ok ? '已添加，回主界面点刷新抓一次' : ('失败：' + d.error);
+    if (d.ok){ $('#doc_url').value = ''; $('#doc_name').value = ''; await loadDocs(); }
+  } finally { busy($('#doc_add'), false, '添加文档'); }
+};
+
+/* ---------- AI 模型 ---------- */
+async function loadAiModels(current){
+  const sel = $('#ai_model');
+  const custom = $('#ai_model_custom');
+  sel.innerHTML = '<option value="">加载中…</option>';
+  let models = [];
+  try{
+    const r = await (await fetch('/api/ai/models')).json();
+    models = r.models || [];
+    if (!r.ok && r.error) sel.innerHTML = '<option value="">' + r.error.slice(0, 40) + '</option>';
+  }catch(e){}
+  if (!models.length) models = current ? [current] : [];
+  if (current && models.indexOf(current) < 0) models.unshift(current);
+  sel.innerHTML = models.map(m => '<option value="' + m + '">' + m + '</option>').join('')
+    + '<option value="__custom">自定义…</option>';
+  if (current && models.indexOf(current) >= 0) sel.value = current;
+  else if (current) { sel.value = '__custom'; custom.value = current; custom.style.display = 'block'; }
+  else sel.value = models[0] || '';
+  custom.style.display = sel.value === '__custom' ? 'block' : 'none';
+}
+$('#ai_model').onchange = function(){
+  $('#ai_model_custom').style.display = this.value === '__custom' ? 'block' : 'none';
+};
+$('#ai_refresh').onclick = async function(e){
+  e.preventDefault();
+  const cur = $('#ai_model').value === '__custom'
+    ? $('#ai_model_custom').value.trim() : $('#ai_model').value;
+  await loadAiModels(cur);
+  $('#ai_st').className = 'st ok';
+  $('#ai_st').textContent = '模型列表已刷新';
+};
+
+/* ---------- 载入 ---------- */
+async function load(){
+  const d = await fetch('/api/settings').then(r => r.json());
+  $('#url').value = d.cfg.alist_url || d.env.alist_url || '';
+  $('#user').value = d.cfg.alist_user || 'admin';
+  $('#pass').placeholder = d.cfg.has_pass ? '已保存 · 留空不改' : 'Alist 管理员密码';
+  $('#stoken').placeholder = d.cfg.has_stoken
+      ? `已保存 ${d.cfg.stoken_len} 字符（留空则不修改）`
+      : 'DevTools → Cookies → STOKEN → Cookie Value';
+
+  $('#ntype').value = d.cfg.notify_type || '';
+  $('#nkey').placeholder = d.cfg.has_notify ? '已保存（留空则不修改）' : '按所选渠道的格式填写';
+  $('#minfree').value = d.cfg.min_free_gb || '';
+  $('#minfree').placeholder = '20';
+  $('#diskInfo').textContent = `当前剩余 ${d.free_gb >= 1024 ? (d.free_gb / 1024).toFixed(1) + ' TB' : d.free_gb + ' GB'}。填 0 表示不限制。`;
+
+  const rootNow = d.cfg.download_root || d.env.download_dir;
+  $('#dlInfo').textContent = '当前路径：' + rootNow;
+  $('#dlInfo').dataset.path = rootNow;
+  $('#bduss').placeholder = d.cfg.has_bduss
+      ? `已保存 ${d.cfg.bduss_len} 字符，末尾 …${d.cfg.bduss_tail}（留空则不修改）`
+      : 'BDUSS=xxxx…  或整段 Cookie';
+  $('#env').innerHTML =
+    `Alist 地址　<code>${d.env.alist_url}</code><br>` +
+    `aria2 　　<code>${d.env.aria2_rpc}</code> ${d.aria2.ok ? '<span style="color:var(--ok)">已连接</span>' : '<span style="color:var(--err)">未连接</span>'}<br>` +
+    `下载目录　<code>${d.env.download_dir}</code>`;
+  $('#auto_pick').value = (d.cfg.auto_pick === '0') ? '0' : '1';
+
+  const aiOn = d.cfg.ai_enabled === '1';
+  $('#ai_en').value = aiOn ? '1' : '';
+  $('#ai_key').placeholder = d.cfg.has_ai_key ? '已保存（留空则不修改）' : 'sk-...';
+  $('#ai_base').value = d.cfg.ai_base || '';
+  $('#ai_base').placeholder = 'https://api.deepseek.com';
+  await loadAiModels(d.cfg.ai_model || '');
+  $('#ai_st').className = 'st ' + (aiOn ? (d.cfg.has_ai_key ? 'ok' : 'warn') : '');
+  $('#ai_st').textContent = aiOn
+      ? (d.cfg.has_ai_key ? 'AI 已开启' : '已开启但还没填 API Key')
+      : 'AI 未开启（只用规则打分）';
+
+  loadDocs().catch(()=>{});
+  const p = d.probe;
+  $('#st').className = 'st ' + (p.logged_in ? 'ok' : (p.error ? 'err' : 'warn'));
+  $('#st').textContent = p.logged_in ? '✅ Alist 登录正常' :
+    (p.error ? '❌ ' + p.error : '未验证');
+
+  /* --- 总览 --- */
+  setOv('alist', p.logged_in ? 'ok' : (p.error ? 'err' : 'warn'),
+        p.logged_in ? '正常' : (p.error ? '异常' : '未验证'),
+        new URL(d.env.alist_url || 'http://x').host || '');
+  setTag('alist', p.logged_in ? 'ok' : (p.error ? 'err' : 'warn'),
+         p.logged_in ? '已连接' : (p.error ? '异常' : '未验证'));
+
+  const gb = d.free_gb;
+  const diskTxt = gb == null ? '—'
+    : gb >= 1024 ? (gb / 1024).toFixed(1) + ' TB' : Math.round(gb) + ' GB';
+  setOv('disk', (gb > 50 ? 'ok' : (gb > 20 ? 'warn' : 'err')), diskTxt, '剩余可用');
+
+  const nt = d.cfg.notify_type || '';
+  setOv('notify', nt ? 'ok' : '', nt ? (NOTIFY_LABEL[nt] || nt) : '未配置',
+        nt ? (d.cfg.has_notify ? '已配置' : '缺参数') : '仅 App 内通知');
+  setTag('notify', nt ? (d.cfg.has_notify ? 'ok' : 'warn') : '',
+         nt ? (d.cfg.has_notify ? '已配置' : '缺参数') : '未配置');
+
+  setOv('ai', aiOn ? (d.cfg.has_ai_key ? 'ok' : 'warn') : '',
+        aiOn ? (d.cfg.ai_model || 'deepseek-chat') : '未开启',
+        aiOn ? (d.cfg.has_ai_key ? '仲裁模式' : '缺 Key') : '只用规则');
+  setTag('ai', aiOn ? (d.cfg.has_ai_key ? 'ok' : 'warn') : '',
+         aiOn ? (d.cfg.has_ai_key ? '已开启' : '缺 Key') : '未开启');
+
+  const hasBd = !!d.cfg.has_bduss, hasSt = !!d.cfg.has_stoken;
+  setTag('baidu', hasBd && hasSt ? 'ok' : (hasBd ? 'warn' : ''),
+         hasBd && hasSt ? '已配置' : (hasBd ? '缺 STOKEN' : '未配置'));
+  setOv('baidu', hasBd && hasSt ? 'ok' : (hasBd ? 'warn' : 'err'),
+        hasBd ? '已授权' : '未配置', hasSt ? 'BDUSS + STOKEN' : (hasBd ? '缺 STOKEN' : '需要 BDUSS'));
+
+  topStat(p.logged_in ? 'ok' : (p.error ? 'err' : 'warn'),
+          p.logged_in ? '一切正常' : (p.error ? '连接异常' : '待检查'));
+
+  // 百度会话实测（不阻塞页面）
+  fetch('/api/status?force=1').then(r => r.json()).then(s => {
+    const b = (s && s.baidu) || {};
+    if (b.ok){
+      setOv('baidu', 'ok', b.user || '已登录', b.svip ? 'SVIP · 在线' : '在线');
+      setTag('baidu', 'ok', b.user || '正常');
+    } else {
+      setOv('baidu', 'err', '会话失效', '需要更新 BDUSS');
+      setTag('baidu', 'err', '需更新');
+    }
+  }).catch(()=>{});
+}
+
+/* ---------- 保存动作 ---------- */
+function formBody(){
+  return {
+    alist_url: $('#url').value.trim(),
+    alist_user: $('#user').value.trim(),
+    alist_pass: $('#pass').value,
+    bduss: $('#bduss').value,
+    stoken: $('#stoken').value,
+    notify_type: $('#ntype').value,
+    notify_key: $('#nkey').value,
+    min_free_gb: $('#minfree').value.trim(),
+  };
+}
+function clearSecrets(){ $('#pass').value=''; $('#bduss').value=''; $('#stoken').value=''; }
+
+$('#save').onclick = async () => {
+  const btn = $('#save'); busy(btn, true, '保存中…');
+  const msg = $('#saveMsg'); msg.className = 'msg';
+  try{
+    const r = await fetch('/api/settings', {method:'POST',
+      headers:{'Content-Type':'application/json'}, body: JSON.stringify(formBody())});
+    const d = await r.json();
+    clearSecrets();
+    if (d.cfg && d.cfg.has_bduss){
+      const warn = d.cfg.bduss_len < 150 ? '（偏短，可能被截断！）' : '';
+      msg.className = 'msg ok';
+      msg.textContent = `已保存 · BDUSS ${d.cfg.bduss_len} 字符${warn}`;
+    } else if (d.probe && d.probe.logged_in){
+      msg.className = 'msg ok'; msg.textContent = '已保存，Alist 登录成功';
+    } else if (d.probe && d.probe.error){
+      msg.className = 'msg err'; msg.textContent = '已保存，但登录失败：' + d.probe.error;
+    } else {
+      msg.className = 'msg ok'; msg.textContent = '已保存';
+    }
+    await load();
+  }catch(e){
+    msg.className = 'msg err'; msg.textContent = '保存失败：' + e.message;
+  } finally { busy(btn, false, '保存更改'); }
+};
+
+$('#verify').onclick = async () => {
+  const btn = $('#verify'); busy(btn, true, '试链中…');
+  $('#vst').className = 'st';
+  $('#vst').textContent = '先保存当前输入，再用真实分享试拉…';
+  try{
+    const saved = await (await fetch('/api/settings', {method:'POST',
+      headers:{'Content-Type':'application/json'}, body: JSON.stringify(formBody())})).json();
+    clearSecrets();
+    await load();
+    if (!saved.cfg || !saved.cfg.has_bduss){
+      $('#vst').className = 'st err';
+      $('#vst').textContent = '❌ 没有保存到 BDUSS，请在上面的框里粘贴后再点这个按钮';
+      return;
+    }
+    if (!saved.cfg.has_stoken){
+      $('#vst').className = 'st err';
+      $('#vst').textContent = '❌ 缺少 STOKEN：转存接口必须要它';
+      return;
+    }
+    const d = await (await fetch('/api/verify/baidu', {method:'POST'})).json();
+    if (d.ok){
+      $('#vst').className = 'st ok';
+      $('#vst').textContent = `✅ 转存成功：《${d.show}》（账号 ${d.user}，vip ${d.vip_type}）`;
+    } else {
+      $('#vst').className = 'st err';
+      $('#vst').textContent = '❌ ' + d.error;
+    }
+  }catch(e){ $('#vst').className = 'st err'; $('#vst').textContent = '请求失败: ' + e.message; }
+  finally { busy(btn, false, '保存并验证下载'); }
+};
+
+$('#ap_save').onclick = async () => {
+  const btn = $('#ap_save'); busy(btn, true, '保存中…');
+  try{
+    await fetch('/api/settings', {method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ auto_pick: $('#auto_pick').value })});
+    $('#ap_st').className = 'st ok';
+    $('#ap_st').textContent = '已保存';
+  }catch(e){
+    $('#ap_st').className = 'st err';
+    $('#ap_st').textContent = '保存失败：' + e.message;
+  }finally{ busy(btn, false, '保存来源设置'); }
+};
+
+$('#ai_save').onclick = async () => {
+  const btn = $('#ai_save'); busy(btn, true, '保存中…');
+  try{
+    const body = {
+      ai_enabled: $('#ai_en').value,
+      ai_key: $('#ai_key').value.trim(),
+      ai_base: $('#ai_base').value.trim(),
+      ai_model: ($('#ai_model').value === '__custom'
+        ? $('#ai_model_custom').value.trim() : $('#ai_model').value.trim()),
+    };
+    const d = await (await fetch('/api/settings', {method:'POST',
+      headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)})).json();
+    $('#ai_key').value = '';
+    $('#ai_key').placeholder = d.cfg.has_ai_key ? '已保存（留空则不修改）' : 'sk-...';
+    $('#ai_st').className = 'st ok';
+    $('#ai_st').textContent = '已保存';
+    await load();
+  }catch(e){
+    $('#ai_st').className = 'st err';
+    $('#ai_st').textContent = '保存失败：' + e.message;
+  }finally{ busy(btn, false, '保存 AI 配置'); }
+};
+
+$('#ai_test').onclick = async () => {
+  const btn = $('#ai_test'); busy(btn, true, '测试中…');
+  $('#ai_st').className = 'st'; $('#ai_st').textContent = '正在请求…';
+  try{
+    const d = await (await fetch('/api/ai/test', {method:'POST'})).json();
+    $('#ai_st').className = 'st ' + (d.ok ? 'ok' : 'err');
+    $('#ai_st').textContent = d.ok
+      ? ('✅ 可用（' + d.model + '）回复：' + d.reply)
+      : '❌ ' + d.error;
+  }catch(e){
+    $('#ai_st').className = 'st err'; $('#ai_st').textContent = '测试失败：' + e.message;
+  }finally{ busy(btn, false, '测试连通性'); }
+};
+
+$('#ntest').onclick = async () => {
+  const btn = $('#ntest'); busy(btn, true, '发送中…');
+  $('#nst').className = 'st'; $('#nst').textContent = '';
+  try{
+    await fetch('/api/settings', {method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(formBody())});
+    clearSecrets(); $('#nkey').value = '';
+    const j = await (await fetch('/api/notify/test', {method:'POST'})).json();
+    $('#nst').className = 'st ' + (j.ok ? 'ok' : 'err');
+    $('#nst').textContent = j.ok ? '✅ 已发送，看看手机收到没有' : '❌ ' + j.detail;
+    await load();
+  }catch(e){ $('#nst').className = 'st err'; $('#nst').textContent = '失败: ' + e.message; }
+  finally{ busy(btn, false, '发送测试通知'); }
+};
+
+/* ---------- BDUSS 识别 ---------- */
+function extractBduss(s){
+  s = (s || '').trim().replace(/^["']+|["']+$/g, '');
+  const m = s.match(/BDUSS=([^;\s"']+)/);
+  if (m) return m[1];
+  if (s.includes(';')) return s.split(';')[0].trim();
+  return s.trim();
+}
+function updateBdussInfo(){
+  const raw = $('#bduss').value;
+  const v = extractBduss(raw);
+  const el = $('#bdussInfo');
+  if (!v){
+    el.textContent = '粘贴后这里会显示识别到多少字符，用来确认没被截断。';
+    el.className = 'hint';
+    return;
+  }
+  const mode = /BDUSS=/.test(raw) ? '（从整段 Cookie 里提取）' : '';
+  const warn = v.length < 150 ? ' ⚠️ 偏短，可能被截断' : '';
+  el.textContent = `识别到 ${v.length} 字符，末尾 …${v.slice(-8)}${mode}${warn}`;
+  el.className = 'hint ' + (v.length < 150 ? 'err' : 'ok');
+}
+$('#bduss').addEventListener('input', updateBdussInfo);
+
+/* ---------- 目录选择 ---------- */
+let dirCur = '';
+async function openDir(path){
+  try{
+    const d = await (await fetch('/api/dirs?path=' + encodeURIComponent(path || ''))).json();
+    if (!d.ok){ toast(d.error || '打不开'); return; }
+    dirCur = d.path;
+    $('#dirHead').textContent = d.path;
+    const rows = [];
+    if (d.parent) rows.push(`<div class="dirow" data-p="${d.parent}"><span class="ico">↑</span>上一级</div>`);
+    d.dirs.forEach(x => rows.push(
+      `<div class="dirow" data-p="${x.path}"><span class="ico">▸</span>${x.name}</div>`));
+    if (!d.dirs.length && !d.parent) rows.push(`<div class="dirow" style="opacity:.5">（空）</div>`);
+    $('#dirList').innerHTML = rows.join('');
+    $('#dirMask').classList.add('show');
+  }catch(e){ toast('读取目录失败：' + e.message); }
+}
+$('#dirList').addEventListener('click', e => {
+  const row = e.target.closest('.dirow');
+  if (row && row.dataset.p) openDir(row.dataset.p);
+});
+$('#dirCancel').onclick = () => $('#dirMask').classList.remove('show');
+$('#dirMask').onclick = e => { if (e.target.id === 'dirMask') $('#dirMask').classList.remove('show'); };
+$('#dirPick').onclick = async () => {
+  try{
+    const r = await fetch('/api/settings', {method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({download_root: dirCur})});
+    const j = await r.json();
+    if (!j.ok) throw new Error('失败');
+    $('#dirMask').classList.remove('show');
+    toast('下载目录已设为 ' + dirCur, 3600);
+    await load();
+  }catch(e){ toast('保存失败：' + e.message); }
+};
+$('#pickDir').onclick = () => openDir('');
+
+/* ---------- 分组导航高亮 ---------- */
+const navLinks = [...$$('.navchips a'), ...$$('.sidenav a')];
+const sections = $$('section.group');
+function syncNav(){
+  const y = window.scrollY + 150;
+  let cur = sections[0];
+  for (const s of sections){ if (s.offsetTop <= y) cur = s; }
+  navLinks.forEach(a => a.classList.toggle('on', a.getAttribute('href') === '#' + cur.id));
+}
+window.addEventListener('scroll', syncNav, {passive:true});
+document.addEventListener('click', e => {
+  const a = e.target.closest('a[href^="#"]');
+  if (a) { e.preventDefault();
+    const t = document.querySelector(a.getAttribute('href'));
+    if (t) window.scrollTo({top: t.offsetTop - 96, behavior:'smooth'});
+  }
+});
+
+load().then(syncNav);
+</script>
+</body>
+</html>
