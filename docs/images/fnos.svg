@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="150" height="34" viewBox="0 0 150 34">
+  <rect x="0.5" y="0.5" width="149" height="33" rx="8" fill="#1b1f27" stroke="#3a4250"/>
+  <g transform="translate(12 8)">
+    <path d="M2 15 L6 4 L10 9 L14 2 L18 15" fill="none" stroke="#4FD3A0" stroke-width="2.2"
+          stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="6" cy="4" r="1.6" fill="#4FD3A0"/>
+    <circle cx="14" cy="2" r="1.6" fill="#4FD3A0"/>
+  </g>
+  <text x="42" y="22" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="13"
+        fill="#e8eaf0" font-weight="600">fnOS 飞牛</text>
+</svg>
