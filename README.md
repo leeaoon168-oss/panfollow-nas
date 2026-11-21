@@ -6,6 +6,8 @@
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![fnOS](https://img.shields.io/badge/开发与验证-fnOS%20%E9%A3%9E%E7%89%9B-4FD3A0)](https://www.fnnas.com/)
 
+**简体中文** · [English](README.en.md)
+
 > 盘追 · 挂在 NAS 上，自动追网盘分享里的新集
 > 仓库：`panfollow-nas`
 把一份 **kdocs（金山文档）里的追更清单**，变成 NAS 上的自动下载器。
