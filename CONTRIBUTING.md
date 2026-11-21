@@ -51,3 +51,7 @@ python -m compileall -q app                            # Python 语法
 ```
 
 CI 里还会跑 `docker compose config -q` 和完整镜像构建。
+## 文档要改两份
+
+`README.md`（简体中文）和 `README.en.md`（English）是同一份内容，
+改功能或配置时两边一起改，避免中英不一致。
