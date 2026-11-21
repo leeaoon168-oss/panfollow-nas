@@ -1,5 +1,22 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="112" fill="#0E1015"/>
-  <path d="M256 96 L372 224 L312 224 L312 400 L200 400 L200 224 L140 224 Z" fill="#5B8DEF"/>
-  <rect x="160" y="424" width="192" height="28" rx="14" fill="#37C88A"/>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1B212B"/>
+      <stop offset="1" stop-color="#12161D"/>
+    </linearGradient>
+    <linearGradient id="blue" x1="0" y1="1" x2="0.6" y2="0">
+      <stop offset="0" stop-color="#3E6BFF"/>
+      <stop offset="1" stop-color="#5B8DEF"/>
+    </linearGradient>
+    <linearGradient id="green" x1="0" y1="1" x2="0.4" y2="0">
+      <stop offset="0" stop-color="#2FC98C"/>
+      <stop offset="1" stop-color="#4BE3A8"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="52">
+    <path d="M132 352 L232 168" stroke="url(#blue)"/>
+    <path d="M232 168 L332 352" stroke="url(#blue)"/>
+    <path d="M332 352 L392 242" stroke="url(#green)"/>
+  </g>
 </svg>
