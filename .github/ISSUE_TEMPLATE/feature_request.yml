@@ -1,0 +1,23 @@
+name: 功能建议
+description: 想要的新能力
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: 你遇到的问题
+      description: 先讲场景，再讲你想要什么
+      placeholder: 我追的剧只有夸克链接，现在显示"暂不支持探测"
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: 你希望它怎么工作
+    validations:
+      required: true
+  - type: textarea
+    id: alt
+    attributes:
+      label: 你现在怎么绕过去的
+      description: 有没有临时办法（手动下载 / Alist / 别的工具）
