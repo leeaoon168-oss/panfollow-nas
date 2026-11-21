@@ -91,8 +91,9 @@ IMAGE=ghcr.io/leeaoon168-oss/panfollow-nas:latest docker compose up -d
 2. 设置页填百度 `BDUSS` / `STOKEN`
 3. 「发现」里勾选要追的剧 → 「同步」
 
-> 百度下载器 `BaiduPCS-Go` 的二进制不随仓库分发（体积大且各架构不同），
-> 首次运行会提示你放到 `app/bin/` 下，或使用官方 Release。
+> 百度下载器 `BaiduPCS-Go` 不随仓库分发（体积大、分架构），
+> **构建镜像时自动下载**（GitHub 失败会自动回退公共加速代理）；
+> 要指定版本或地址：`--build-arg PCS_VERSION=4.0.2` / `--build-arg PCS_URL=...`。
 
 ## 配置
 
@@ -100,13 +101,14 @@ IMAGE=ghcr.io/leeaoon168-oss/panfollow-nas:latest docker compose up -d
 
 | 变量 | 说明 | 必填 |
 |---|---|---|
-| `DOC_URL` | 追更清单文档地址 | ✅ |
-| `DOC_COOKIE` | 兜底用；推荐用扫码登录 | |
-| `ALIST_URL` / `ALIST_USER` / `ALIST_PASS` | Alist 地址与账号（用于百度分享取直链） | ✅ |
+| `DOC_URL` | 追更清单文档/表格地址 | ✅ |
 | `ALIST_BDUSS` | 百度 BDUSS | ✅ |
-| `ARIA2_SECRET` | aria2 RPC 密钥 | ✅ |
-| `SYNC_HOURS` | 自动刷新文档的间隔（小时） | |
-| `DOWNLOAD_DIR` | 容器内落地目录 | |
+| `ALIST_STOKEN` | 百度 STOKEN（转存必须） | ✅ |
+| `DOWNLOAD_HOST_DIR` | 宿主机下载目录（挂到容器 `/downloads`） | ✅ |
+| `DATA_HOST_DIR` | 宿主机数据卷根目录（挂到 `/mnt/data`，用于选目录） | ✅ |
+| `DOC_COOKIE` | 兜底用；推荐用扫码登录 | |
+| `SYNC_HOURS` | 自动刷新清单的间隔（小时，默认 24） | |
+| `ALIST_URL` / `ALIST_USER` / `ALIST_PASS` / `ARIA2_SECRET` | 早期版本遗留，新装可不填 | |
 
 更多开关（AI、通知、画质偏好、磁盘保护）在网页「设置」里，存 SQLite，不用重启。
 
@@ -136,9 +138,9 @@ docs/           架构、配置、排错
 目前只接入了百度（BaiduPCS-Go）。夸克等来源会保留、参与展示，但不参与下载。
 路线图里计划通过 Alist 驱动补齐。
 
-**Q：为什么不用 Alist 直接下百度？**
-Alist 的 BaiduShare 驱动能取直链，但对大文件、断点续传、限速的处理不如 BaiduPCS-Go 稳。
-本项目以 BaiduPCS-Go 为主，Alist 用于部分场景。
+**Q：需要另外装 Alist 或 aria2 吗？**
+不需要。下载全部由容器内的 BaiduPCS-Go 完成，前面几版依赖的 Alist / aria2 已降级为可选
+（`docker compose --profile legacy up` 才会启动）。
 
 **Q：会不会删我的文件？**
 只会删"下载残片"（`.BaiduPCS-Go-downloading`、全零空壳）和手动点「删除」时。
