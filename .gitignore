@@ -1,0 +1,47 @@
+# ---- 运行态 / 本地数据，绝不提交 ----
+state/
+.env
+.env.local
+pcs-config/
+aria2-config/
+alist-config/
+
+# ---- 第三方二进制（体积大、协议不同、按架构区分）----
+app/bin/
+BaiduPCS-Go
+BaiduPCS-Go-*
+
+# ---- Android 签名与产物 ----
+android/*.jks
+android/*.keystore
+android/*.apk
+android/*.idsig
+android/build/
+android/.gradle/
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pylibs/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+
+# ---- 调试产物 ----
+shots/
+*.log
+*.tmp
+_write_probe.tmp
+
+# ---- 编辑器 / 系统 ----
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ��ͼԴͷ��ֻ���� docs/images �������ģ�
+shots/
