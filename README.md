@@ -1,5 +1,10 @@
 # PanFollow-NAS
 
+[![Docker](https://github.com/leeaoon168-oss/panfollow-nas/actions/workflows/docker.yml/badge.svg)](https://github.com/leeaoon168-oss/panfollow-nas/actions/workflows/docker.yml)
+[![CI](https://github.com/leeaoon168-oss/panfollow-nas/actions/workflows/ci.yml/badge.svg)](https://github.com/leeaoon168-oss/panfollow-nas/actions/workflows/ci.yml)
+[![ghcr](https://img.shields.io/badge/ghcr.io-panfollow--nas-2496ED?logo=docker&logoColor=white)](https://github.com/leeaoon168-oss/panfollow-nas/pkgs/container/panfollow-nas)
+[![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+
 > 盘追 · 挂在 NAS 上，自动追网盘分享里的新集
 > 仓库：`panfollow-nas`
 把一份 **kdocs（金山文档）里的追更清单**，变成 NAS 上的自动下载器。
