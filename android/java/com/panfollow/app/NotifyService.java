@@ -57,7 +57,7 @@ public class NotifyService extends Service {
         if (Build.VERSION.SDK_INT < 26) return;
         NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
         NotificationChannel ev = new NotificationChannel(
-                CH_ID, "追更消息", NotificationManager.IMPORTANCE_HIGH);
+                CH_ID, "PanFollow 消息", NotificationManager.IMPORTANCE_HIGH);
         ev.setDescription("下载完成、新集、失败提醒");
         ev.enableVibration(true);
         nm.createNotificationChannel(ev);
@@ -73,7 +73,7 @@ public class NotifyService extends Service {
         Notification.Builder b = Build.VERSION.SDK_INT >= 26
                 ? new Notification.Builder(this, CH_SERVICE)
                 : new Notification.Builder(this);
-        b.setContentTitle("追更在后台运行")
+        b.setContentTitle("PanFollow 在后台运行")
                 .setContentText("有新集或下载完成会通知你")
                 .setSmallIcon(android.R.drawable.stat_notify_chat)
                 .setOngoing(true);
