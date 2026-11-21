@@ -3,6 +3,7 @@
 [![Docker](https://github.com/leeaoon168-oss/panfollow-nas/actions/workflows/docker.yml/badge.svg)](https://github.com/leeaoon168-oss/panfollow-nas/actions/workflows/docker.yml)
 [![CI](https://github.com/leeaoon168-oss/panfollow-nas/actions/workflows/ci.yml/badge.svg)](https://github.com/leeaoon168-oss/panfollow-nas/actions/workflows/ci.yml)
 [![ghcr](https://img.shields.io/badge/ghcr.io-panfollow--nas-2496ED?logo=docker&logoColor=white)](https://github.com/leeaoon168-oss/panfollow-nas/pkgs/container/panfollow-nas)
+[![version](https://img.shields.io/badge/version-2.0-blue)](https://github.com/leeaoon168-oss/panfollow-nas/releases)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![fnOS](https://img.shields.io/badge/developed%20on-fnOS%20(NAS)-4FD3A0)](https://www.fnnas.com/)
 
@@ -58,6 +59,13 @@ downloads **only the episodes you don't have yet**, and notifies you in the mobi
   - Documents: headless Chromium via Playwright, scrolls and merges the virtualized list
   - Spreadsheets: talks to the WPS frontend API and reads cells by range, so it gets the
     **real hyperlinks** behind "百度网盘" cells (copy-paste only yields the display text)
+- **Baidu and Quark both supported**
+  - Baidu: transferred/downloaded inside the container by BaiduPCS-Go — no extra components
+  - Quark: **probing needs no login** (share pages are guest-readable), so episode count and quality
+    still take part in ranking; downloading needs a QR login in Settings, then Alist turns the share
+    into a direct link and aria2 writes it to disk (Quark free tier is ~10 GB, so it transfers one
+    episode, downloads it, then cleans up)
+  - Xunlei / 139 / 115: links are parsed and shown, not downloaded yet
 - **Multi-document merge**: the same show in several documents is merged; each source is tagged
   with the document it came from (`主文档` / `备用清单` …)
 - **Source ranking**: a show can have many share links (authors rotate links over time).
@@ -81,7 +89,9 @@ downloads **only the episodes you don't have yet**, and notifies you in the mobi
    - Developed and verified on **fnOS (飞牛)**; Synology, QNAP, TrueNAS and plain Linux work too,
      only the host paths differ
 2. A **Baidu Netdisk SVIP** account (transfer and fast download both require a paid account)
-3. Your own kdocs document or spreadsheet to use as the share list
+3. (Optional) **Alist** — only needed to download **Quark** links: Quark does not hand out direct URLs
+   for large files, so Alist mounts the Quark drive and proxies it. Skip it if you only use Baidu
+4. Your own kdocs document or spreadsheet to use as the share list
 
 > On fnOS: install Docker from the App Center → SSH into the NAS → the steps below.
 > Use fnOS-style paths such as `/vol1/1000/...` for the download directory.
@@ -168,9 +178,20 @@ BaiduPCS-Go's self-check endpoint got an HTML anti-bot page instead of JSON. The
 PanFollow-NAS re-checks with `pcs who` and continues if the session is alive. Only replace the BDUSS
 when `pcs who` reports "not logged in".
 
-**Why do Quark / Xunlei links show "probing not supported"?**
-Only Baidu is wired up today (via BaiduPCS-Go). Those links are kept and displayed but not used for
-downloading. Adding Quark is on the roadmap.
+**How does Quark work?**
+Two separate things:
+
+- **Probing needs no login** — Quark share pages are guest-readable, so episode count, quality and
+  total size are computed and take part in source ranking
+- **Downloading needs a login** — Settings → Connections → Quark → scan the QR code. Each episode is
+  transferred to your own Quark drive, Alist exposes a direct link, aria2 writes it to disk, then the
+  transfer is cleaned up (the free tier is ~10 GB, so it rolls one episode at a time)
+
+So Quark downloading needs **Alist (configured in Settings) + the aria2 container**; Baidu-only setups
+need neither.
+
+**What about Xunlei / 139 / 115 links?**
+They are parsed and displayed in the source panel, but not downloaded yet.
 
 **Do I need Alist or aria2?**
 No. All downloading is done inside the container by BaiduPCS-Go. Alist/aria2 from earlier versions are
