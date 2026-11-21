@@ -1,0 +1,57 @@
+name: Bug 报告
+description: 下载不对、解析不到、界面异常等
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        先看一下 [排错手册](https://github.com/leeaoon168-oss/panfollow-nas/blob/main/docs/TROUBLESHOOTING.md)，
+        很多问题那里已经有答案。
+  - type: textarea
+    id: what
+    attributes:
+      label: 发生了什么
+      description: 越具体越好，比如"点同步后卡在转存中 10 分钟没动"
+    validations:
+      required: true
+  - type: textarea
+    id: expect
+    attributes:
+      label: 你期望的结果
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: 版本
+      description: 镜像 tag 或 git commit（`docker inspect` 里的 image 也算）
+      placeholder: v1.0.0
+  - type: dropdown
+    id: env
+    attributes:
+      label: 环境
+      options:
+        - 飞牛 fnOS
+        - 群晖 DSM
+        - 威联通 QTS
+        - TrueNAS
+        - 普通 Linux
+        - Windows / macOS（Docker Desktop）
+        - 其他
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: 相关日志
+      description: 用 `docker compose logs --tail=80 web` 抓一段，**记得去掉 BDUSS / Cookie / 你的文档地址**
+      render: shell
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: 确认
+      options:
+        - label: 日志里的 BDUSS / STOKEN / 文档链接已经涂掉
+          required: true
+        - label: 已经看过排错手册
+          required: true
