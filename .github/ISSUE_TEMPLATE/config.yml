@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 部署 / 配置问题
+    url: https://github.com/leeaoon168-oss/panfollow-nas/blob/main/docs/DEPLOY.md
+    about: 怎么装、BDUSS 怎么拿、目录怎么填，先看部署指南
+  - name: 报错排查
+    url: https://github.com/leeaoon168-oss/panfollow-nas/blob/main/docs/TROUBLESHOOTING.md
+    about: 百度风控、表格解析、通知收不到，常见问题在这里
