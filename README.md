@@ -17,6 +17,7 @@
 </p>
 
 <p align="center">
+  <img src="docs/images/screenshot-list.png" width="240" alt="剧集列表">
   <img src="docs/images/screenshot-detail.png" width="240" alt="详情">
   <img src="docs/images/screenshot-settings.png" width="240" alt="设置">
 </p>
