@@ -3,6 +3,7 @@
 [![Docker](https://github.com/leeaoon168-oss/panfollow-nas/actions/workflows/docker.yml/badge.svg)](https://github.com/leeaoon168-oss/panfollow-nas/actions/workflows/docker.yml)
 [![CI](https://github.com/leeaoon168-oss/panfollow-nas/actions/workflows/ci.yml/badge.svg)](https://github.com/leeaoon168-oss/panfollow-nas/actions/workflows/ci.yml)
 [![ghcr](https://img.shields.io/badge/ghcr.io-panfollow--nas-2496ED?logo=docker&logoColor=white)](https://github.com/leeaoon168-oss/panfollow-nas/pkgs/container/panfollow-nas)
+[![version](https://img.shields.io/badge/version-2.0-blue)](https://github.com/leeaoon168-oss/panfollow-nas/releases)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![fnOS](https://img.shields.io/badge/开发与验证-fnOS%20%E9%A3%9E%E7%89%9B-4FD3A0)](https://www.fnnas.com/)
 
@@ -59,6 +60,11 @@
 - **文档 / 表格两种来源都能读**
   - 文档：Playwright 驱动无头 Chromium，滚动合并虚拟列表
   - 表格：走 WPS 前端 API 按 Range 读单元格，能拿到单元格里的**真实超链接**（剪贴板方案只能拿到显示文字）
+- **百度 + 夸克都能下**
+  - 百度：容器内 BaiduPCS-Go 转存 / 下载，不需要额外组件
+  - 夸克：**不登录也能探测**集数与画质（分享页游客可读）；要下载则在设置页扫码登录，
+    由 Alist 转直链、aria2 落盘（夸克免费空间只有 ~10GB，所以是"转存单集 → 下载 → 删"滚动进行）
+  - 迅雷 / 139 / 115 等：目前只记录链接、参与展示
 - **多文档合并**：同一部剧出现在多份文档里会自动合并，链接按文档打标签（`主文档` / `备用清单` …）
 - **多来源选优**：一部剧可以挂多个分享链接（同一个人隔段时间会换链接），自动探测每个来源的画质与集数后排序
   - 缺集时「**能补齐**」优先于「画质」
@@ -72,10 +78,12 @@
 
 ## 前置条件
 
-1. 一台跑 Docker 的 NAS / Linux 主机（**单容器，不需要 Alist、不需要 aria2**）
+1. 一台跑 Docker 的 NAS / Linux 主机（**只用百度时单容器即可**；要下夸克再加 Alist + aria2）
    - 本项目在 **飞牛 fnOS** 上开发与验证；群晖、威联通、TrueNAS、普通 Linux 同样可用（只是宿主机路径不同）
 2. 一个**百度网盘 SVIP** 账号（转存和高速下载都要求会员）
-3. 一份你自己的 kdocs 文档或表格（当作追更清单）
+3. （可选）**Alist**：只有要下载**夸克**链接时才需要——夸克不直接给大文件直链，
+   要靠 Alist 挂「夸克网盘」驱动转一道；只用百度的话不用装
+4. 一份你自己的 kdocs 文档或表格（当作追更清单）
 
 > 在飞牛 fnOS 上：应用中心装好 Docker → SSH 进 NAS → 下面几步；
 > 下载目录填 `/vol1/1000/...` 这类 fnOS 路径即可。
@@ -160,13 +168,23 @@ docs/           架构、配置、排错
 这是 BaiduPCS-Go 自检接口被风控返回了 HTML，不代表账号失效。程序会用 `pcs who` 复核，
 会话有效就继续。若 `pcs who` 也报未登录，才需要换 BDUSS。
 
-**Q：夸克 / 迅雷链接为什么显示"暂不支持探测"？**
-目前只接入了百度（BaiduPCS-Go）。夸克等来源会保留、参与展示，但不参与下载。
-路线图里计划通过 Alist 驱动补齐。
+**Q：夸克怎么用？**
+分两件事：
+
+- **探测（不用登录）**：夸克分享页游客可读，所以"多少集 / 什么画质 / 总共多大"能直接算出来，正常参与选优
+- **下载（要登录）**：设置 → 连接与账号 → 夸克网盘 → 扫码。
+  下载时把这一集转存到你自己的夸克网盘 → 由 Alist 的夸克驱动取直链 → aria2 落盘 → 删掉转存
+  （夸克免费空间只有 ~10GB，所以是"转存一集 → 下载 → 清理"滚动进行）
+
+因此**夸克下载需要 Alist（填在设置里）+ aria2 容器**；只用百度的话这两个都不需要。
+
+**Q：迅雷 / 139 / 115 链接呢？**
+会被解析出来、在来源面板里能看到，但暂不参与下载（和早期版本的夸克一样）。
 
 **Q：需要另外装 Alist 或 aria2 吗？**
-不需要。下载全部由容器内的 BaiduPCS-Go 完成，前面几版依赖的 Alist / aria2 已降级为可选
-（`docker compose --profile legacy up` 才会启动）。
+只用百度：不需要（下载全部由容器内的 BaiduPCS-Go 完成）。
+要下夸克：需要 Alist（挂「夸克网盘」驱动，本程序会自动帮你建/更新这个挂载）+ aria2 容器
+（`docker compose up -d` 默认就会起 aria2）。
 
 **Q：会不会删我的文件？**
 只会删"下载残片"（`.BaiduPCS-Go-downloading`、全零空壳）和手动点「删除」时。
