@@ -57,7 +57,7 @@
 ## 快速开始
 
 ```bash
-git clone <你的仓库地址> panfollow-nas
+git clone https://github.com/leeaoon168-oss/panfollow-nas.git
 cd panfollow-nas
 
 cp .env.example .env
@@ -78,8 +78,8 @@ docker compose up -d --build
 **不想自己构建**：仓库自带 GitHub Actions，每次 push 会自动构建多架构镜像推到 GHCR。
 
 ```bash
-docker pull ghcr.io/<owner>/panfollow-nas:latest
-IMAGE=ghcr.io/<owner>/panfollow-nas:latest docker compose up -d
+docker pull ghcr.io/leeaoon168-oss/panfollow-nas:latest
+IMAGE=ghcr.io/leeaoon168-oss/panfollow-nas:latest docker compose up -d
 ```
 
 > 详细步骤（怎么拿 BDUSS/STOKEN、构建失败怎么办、目录怎么选）见
