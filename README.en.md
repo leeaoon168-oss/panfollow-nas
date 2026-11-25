@@ -3,7 +3,7 @@
 [![Docker](https://github.com/leeaoon168-oss/panfollow-nas/actions/workflows/docker.yml/badge.svg)](https://github.com/leeaoon168-oss/panfollow-nas/actions/workflows/docker.yml)
 [![CI](https://github.com/leeaoon168-oss/panfollow-nas/actions/workflows/ci.yml/badge.svg)](https://github.com/leeaoon168-oss/panfollow-nas/actions/workflows/ci.yml)
 [![ghcr](https://img.shields.io/badge/ghcr.io-panfollow--nas-2496ED?logo=docker&logoColor=white)](https://github.com/leeaoon168-oss/panfollow-nas/pkgs/container/panfollow-nas)
-[![version](https://img.shields.io/badge/version-2.0-blue)](https://github.com/leeaoon168-oss/panfollow-nas/releases)
+[![version](https://img.shields.io/badge/version-2.1-blue)](https://github.com/leeaoon168-oss/panfollow-nas/releases)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![fnOS](https://img.shields.io/badge/developed%20on-fnOS%20(NAS)-4FD3A0)](https://www.fnnas.com/)
 
@@ -187,8 +187,8 @@ Two separate things:
   transferred to your own Quark drive, Alist exposes a direct link, aria2 writes it to disk, then the
   transfer is cleaned up (the free tier is ~10 GB, so it rolls one episode at a time)
 
-So Quark downloading needs **Alist (configured in Settings) + the aria2 container**; Baidu-only setups
-need neither.
+So Quark downloading needs **Alist (configured in Settings)**; aria2 is recommended but optional —
+without it the app falls back to its own streaming downloader (resumable). Baidu-only setups need neither.
 
 **What about Xunlei / 139 / 115 links?**
 They are parsed and displayed in the source panel, but not downloaded yet.
