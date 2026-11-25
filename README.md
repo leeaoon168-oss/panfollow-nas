@@ -4,6 +4,7 @@
 [![CI](https://github.com/leeaoon168-oss/panfollow-nas/actions/workflows/ci.yml/badge.svg)](https://github.com/leeaoon168-oss/panfollow-nas/actions/workflows/ci.yml)
 [![ghcr](https://img.shields.io/badge/ghcr.io-panfollow--nas-2496ED?logo=docker&logoColor=white)](https://github.com/leeaoon168-oss/panfollow-nas/pkgs/container/panfollow-nas)
 [![version](https://img.shields.io/badge/version-2.1-blue)](https://github.com/leeaoon168-oss/panfollow-nas/releases)
+[![changelog](https://img.shields.io/badge/changelog-2.1-blueviolet)](CHANGELOG.md)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![fnOS](https://img.shields.io/badge/开发与验证-fnOS%20%E9%A3%9E%E7%89%9B-4FD3A0)](https://www.fnnas.com/)
 
@@ -196,6 +197,10 @@ docs/           架构、配置、排错
 
 本项目只做"**把公开分享链接里的文件搬到自己的硬盘**"这件事，不提供、不托管、不搜索任何内容。
 请确保你有权下载相关文件，遵守网盘服务条款与当地法律。使用者自行承担全部责任。
+
+## 更新记录
+
+每个版本改了什么见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## License
 
