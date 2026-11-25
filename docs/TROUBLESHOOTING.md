@@ -1,5 +1,7 @@
 # 排错手册
 
+**简体中文** · [English](TROUBLESHOOTING.en.md)
+
 ## 百度
 
 ### `检测BDUSS有效性json解析出错: invalid character '<'`
@@ -85,7 +87,7 @@ docker exec -it panfollow-web rm -f /state/doc_state.json
 
 ### 来源显示「夸克 暂不支持探测」
 
-旧版本没有夸克模块。升级到 v1.1.0 之后重新「探测并选优」即可；探测是游客级的，不需要登录。
+旧版本没有夸克模块。升级到 v2.1.0 之后（夸克模块从 v2.0.0 开始有）重新「探测并选优」即可；探测是游客级的，不需要登录。
 
 ### 扫码后仍显示未登录
 
