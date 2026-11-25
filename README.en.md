@@ -126,7 +126,7 @@ IMAGE=ghcr.io/leeaoon168-oss/panfollow-nas:latest docker compose up -d
 ```
 
 > Step-by-step guide (how to grab BDUSS/STOKEN, build failures, choosing folders):
-> **[docs/DEPLOY.md](docs/DEPLOY.md)** (Chinese).
+> **[docs/DEPLOY.en.md](docs/DEPLOY.en.md)** for the step-by-step version.
 
 After the first start:
 
@@ -169,7 +169,7 @@ app/            FastAPI service (backend + static pages)
   notify.py     notification channels
 deploy/nas.py   tiny SSH deploy helper
 android/        Android WebView shell (no keystore, no build artifacts)
-docs/           architecture, deployment, troubleshooting
+docs/           architecture, deployment, troubleshooting (中/EN)
 ```
 
 ## FAQ
