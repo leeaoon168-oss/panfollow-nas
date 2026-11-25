@@ -1,5 +1,7 @@
 # 部署指南
 
+**简体中文** · [English](DEPLOY.en.md)
+
 面向"第一次用 Docker 装东西"的人。全程约 10 分钟。
 
 ## 0. 你需要准备
@@ -148,6 +150,6 @@ docker build --build-arg PCS_VERSION=none -t panfollow-nas:local app/
 八成是 kdocs 没登录。看 `docker compose logs -f web | grep -i login`，
 或者直接打开 `/login` 重新扫码。
 
-**不想装 Alist / aria2**
-不用装。新版本下载全部由容器内的 BaiduPCS-Go 完成，
-compose 里的 aria2 只在 `--profile legacy` 时才启动。
+**需要装 Alist / aria2 吗？**
+只追百度：不用，下载全部由容器内的 BaiduPCS-Go 完成。
+要下夸克：需要 Alist；aria2 推荐但不强制（没起会退回内置下载）。
