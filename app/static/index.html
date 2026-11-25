@@ -18,7 +18,7 @@
  --ok-weak:rgba(53,196,140,.13);--err-weak:rgba(240,96,106,.13);
  --safe-b:env(safe-area-inset-bottom,0px);--safe-t:env(safe-area-inset-top,0px);--r:14px}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{height:100%}
+html,body{height:100%;overflow-x:clip}
 body{margin:0;background:var(--bg);color:var(--fg);
  font:15px/1.5 -apple-system,BlinkMacSystemFont,"PingFang SC","HarmonyOS Sans SC","Microsoft YaHei",sans-serif;
  font-feature-settings:"tnum";overscroll-behavior-y:contain;
@@ -84,12 +84,22 @@ body{margin:0;background:var(--bg);color:var(--fg);
 .ntrow .nm{flex:1;min-width:0}
 .ntrow .n1{font-size:12.5px;color:var(--fg)}
 .ntrow .n2{font-size:10.5px;color:var(--fg3);margin-top:3px;word-break:break-all;line-height:1.5}
+/* 窄屏卡片角标：绝不换行，必要时精简 */
+@media (max-width:430px){
+  .tcat,.tnew{font-size:8.5px;padding:1px 4px;border-radius:4px}
+  .tt{gap:4px}
+  .tnew.auto{display:none}
+}
+@media (max-width:350px){
+  .tcat{display:none}
+}
 .ntempty{color:var(--fg3);font-size:12px;padding:14px 0;text-align:center}
 .fchip.on{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:600}
 /* 网格 */
 main{padding:11px}
 #list.grid{display:grid;grid-template-columns:repeat(var(--cols,2),minmax(0,1fr));gap:9px}
 #list.rows{display:block}
+#list.rows > *{max-width:760px;margin-left:auto;margin-right:auto}
 .tile{position:relative;background:var(--card);border:1px solid var(--line);border-radius:var(--r);
  padding:11px 11px 0;display:flex;flex-direction:column;min-height:150px;
  transition:transform .12s,border-color .2s,background .2s,box-shadow .2s;overflow:hidden}
@@ -102,9 +112,11 @@ main{padding:11px}
 .tile.on::before{background:var(--acc)}
 .tile.live::before{background:var(--ok)}
 /* 顶部：分类 + 角标 + 勾选 */
-.tt{display:flex;align-items:center;gap:5px;min-height:17px}
+.tt{display:flex;align-items:center;gap:5px;min-height:18px;flex-wrap:nowrap;overflow:hidden}
+.tt > *{flex:0 0 auto}
 .tcat{font-size:9.5px;font-weight:600;padding:1.5px 6px;border-radius:5px;
- color:#8FA3C0;background:#1E2735;letter-spacing:.2px}
+ color:#8FA3C0;background:#1E2735;letter-spacing:.2px;
+ white-space:nowrap;max-width:72px;overflow:hidden;text-overflow:ellipsis}
 .tcat.c-动漫{color:#B79CEA;background:#241D33}
 .tcat.c-电影{color:#E0B25A;background:#2E2617}
 .tcat.c-综艺{color:#5FC4A8;background:#172B27}
@@ -112,7 +124,7 @@ main{padding:11px}
 .tcat.c-海外剧集{color:#6FC0DE;background:#17272E}
 .tcat.c-近期完结{color:#9AA3B5;background:#212631}
 .tnew{font-size:9px;font-weight:700;color:#0B0D11;background:#4FD3A0;
- padding:1.5px 5px;border-radius:4px;letter-spacing:.2px}
+ padding:1.5px 5px;border-radius:4px;letter-spacing:.2px;white-space:nowrap}
 .tnew.hot{background:#E0A44E}
 .tnew.up{background:#5B8DEF;color:#fff}
 .tnew.bad{background:#F0606A;color:#fff}
@@ -752,12 +764,20 @@ function panelHTML(){
   var d = (STATUS && STATUS.disk) || {};
   var qq = (STATUS && STATUS.queue) || {};
   var nt = (STATUS && STATUS.notify) || {};
+  var qk = (STATUS && STATUS.quark) || {};
   var h = '';
   h += '<div class="panelh">百度网盘</div>';
   h += '<div class="row"><span class="dot ' + (b.ok ? 'ok' : 'bad') + '"></span>'
      + '<div class="rv">' + (b.ok ? (b.user || '已登录') : '未登录 / 无效')
      + '<small>' + (b.ok ? ('vip_type ' + (b.vip_type == null ? '?' : b.vip_type)
         + (b.svip ? ' · 超级会员' : ' · 非超级会员')) : (b.detail || '请到设置页填 BDUSS')) + '</small></div></div>';
+
+  h += '<div class="panelh">夸克网盘</div>';
+  h += '<div class="row"><span class="dot ' + (qk.ok ? 'ok' : (qk.has_cookie ? 'bad' : 'warn')) + '"></span>'
+     + '<div class="rv">' + (qk.ok ? '已登录' : (qk.has_cookie ? 'Cookie 已失效' : '未登录'))
+     + '<small>' + (qk.ok
+        ? ('接口正常' + (qk.total != null ? ' · 网盘 ' + qk.total + ' 项' : ''))
+        : (qk.error || '未登录') + '（设置页 → 连接与账号 → 夸克网盘 扫码）') + '</small></div></div>';
 
   var st = k.state || 'never';
   var dotCls = st === 'ok' ? 'ok' : st === 'error' ? 'bad' : st === 'stale' ? 'warn' : '';
@@ -1561,7 +1581,7 @@ async function loadSources(){
   $('#srcList').innerHTML = '';
   var d = await jfetch('/api/sources?slug=' + encodeURIComponent(srcSlug));
   if (!d.ok){ $('#srcSub').textContent = '读取失败'; return; }
-  $('#srcSub').textContent = '共 ' + d.sources.length + ' 个来源'
+  $('#srcSub').textContent = '共 ' + d.sources.length + ' 个来源（点「切换」= 固定用这个）'
     + (d.ai ? ' · AI 仲裁已开' : '')
     + (d.reason ? ' · ' + d.reason : '');
   if (!d.sources.length){
