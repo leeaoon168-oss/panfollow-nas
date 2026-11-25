@@ -1188,6 +1188,24 @@ def _size_txt(n) -> str:
     return f"{n:.2f}TB"
 
 
+def aria_purge_unwritable() -> None:
+    """清掉 aria2 里「目录在容器外」的僵尸任务（它们会永远卡在 active）。"""
+    ar = aria()
+    try:
+        items = (ar._call("aria2.tellActive", []) or []) + \
+                (ar._call("aria2.tellWaiting", [0, 100]) or [])
+        for it in items:
+            d = (it.get("dir") or "")
+            if d.startswith("/mnt/data"):
+                try:
+                    ar._call("aria2.remove", [it.get("gid")])
+                    print(f"[aria] 清掉写不进的任务: {d}", flush=True)
+                except Exception:
+                    pass
+    except Exception:
+        pass
+
+
 def ensure_quark_mount() -> str:
     """确保 Alist 里挂着夸克网盘（取直链靠它，因为夸克对大文件不直接给 URL）。"""
     if not quark.has_cookie():
@@ -1238,67 +1256,47 @@ def download_show_quark(slug: str, sh: dict, src: dict) -> None:
     if not targets and not zips:
         raise RuntimeError("分享里没有符合条件的视频文件")
 
+    aria_purge_unwritable()
     out_dir = show_root(slug)
     out_dir.mkdir(parents=True, exist_ok=True)
+
+    # 按用户要求：最终必须落在「这部剧的下载目录」；写不进去就报错。
+    if not os.access(out_dir, os.W_OK):
+        raise RuntimeError(f"目录不可写：{out_dir}（请在 NAS 上检查权限）")
+
+    # aria2 容器只挂了 /downloads（写不了 /mnt/data），所以先下到暂存区，
+    # 下完由本进程（root）搬到资源目录；搬不动就报错，不换目录。
+    stage = DL_ROOT / ".quark-tmp" / (re.sub(r"[^\w\u4e00-\u9fa5-]", "", slug)[:30] or "show")
+    stage.mkdir(parents=True, exist_ok=True)
+
     local = local_files(slug)
+    have_eps = set(local_ep_scores(slug).keys())
     queued = aria().queue_names()
 
-    # 任务清单：视频按集挑，zip 整包下完再解压（按文件名去重，分享里常有重复条目）
-    jobs, _seen = [], set()
+    # 任务清单：按「集号」去重（本地已有该集就跳过，不管文件名写法）
+    jobs, _seen_name, _seen_ep = [], set(), set()
     for t in targets:
         name = t[1]
+        ep = t[2]
+        if ep in have_eps or ep in _seen_ep:
+            continue
         path = next((p for p, o in files
                      if (o.get("name") or Path(p).name) == name), "")
-        if path and name not in _seen:
-            _seen.add(name)
+        if path and name not in _seen_name:
+            _seen_name.add(name)
+            _seen_ep.add(ep)
             jobs.append((name, path, False))
     for p, o in zips:
         zname = o.get("name") or Path(p).name
-        if zname not in _seen:
-            _seen.add(zname)
+        if zname not in _seen_name:
+            _seen_name.add(zname)
             jobs.append((zname, p, True))
 
-    done = 0
-    for i, (name, path, is_zip) in enumerate(jobs, 1):
-        if name in local or name in queued:
-            continue
-        set_phase(slug, "下载中", f"夸克 [{i}/{len(jobs)}] {name}")
-        try:
-            url = a.link(path)
-            # 试链：直链过期时 Alist 会回 JSON/HTML 错误，aria2 会当成文件存下来
-            r = httpx.get(url, timeout=60, follow_redirects=True,
-                          headers={"Range": "bytes=0-320"})
-            head = (r.content or b"")[:320].lstrip()
-            if r.status_code >= 400 or head.startswith(b'{"code"') or head.startswith(b"<"):
-                raise RuntimeError(f"直链无效（HTTP {r.status_code}）")
-        except Exception as e:
-            print(f"[quark] {slug}: 取链失败 {name}: {e}", flush=True)
-            continue
-        aria().add(url, str(out_dir), out=name)
-        store.mark_file(slug, name, "queued")
-        done += 1
-
-    if not done:
-        print(f"[quark] {slug}: 没有新增需要下载的文件", flush=True)
+    if not jobs:
+        set_phase(slug, "完成", f"夸克：本地已齐（{len(have_eps)} 集）")
+        print(f"[quark] {slug}: 本地已齐，无需下载", flush=True)
         return
 
-    # 等这一批落盘
-    deadline = time.time() + 8 * 3600
-    last = 0
-    while time.time() < deadline:
-        have = sum(1 for n, _, _ in jobs if (out_dir / n).exists())
-        if have != last:
-            last = have
-            set_phase(slug, "下载中", f"夸克 {have}/{len(jobs)} 已落盘")
-        if have >= len(jobs):
-            break
-        if not busy_aria():
-            time.sleep(3)
-            if sum(1 for n, _, _ in jobs if (out_dir / n).exists()) >= len(jobs):
-                break
-        time.sleep(5)
-
-    # 大小对账：明显小于源文件就是下坏了（典型是错误页被当文件）
     want = {}
     for p, o in files:
         nm = o.get("name") or Path(p).name
@@ -1306,17 +1304,79 @@ def download_show_quark(slug: str, sh: dict, src: dict) -> None:
             want[nm] = int(o.get("size") or 0)
         except Exception:
             want[nm] = 0
-    for name, path, is_zip in jobs:
-        f2 = out_dir / name
-        w = want.get(name) or 0
-        if f2.exists() and w and f2.stat().st_size < w * 0.9 and not (is_zip and f2.stat().st_size > 1024):
-            try:
-                print(f"[quark] {slug}: {name} 只有 {f2.stat().st_size} / {w}，删掉重试", flush=True)
-                f2.unlink()
-            except OSError:
-                pass
 
-    # 解压 zip（夸克很多分享是分卷 zip，不是单集视频）
+    added, link_err = 0, ""
+    for i, (name, path, is_zip) in enumerate(jobs, 1):
+        if name in queued:
+            continue
+        set_phase(slug, "下载中", f"夸克 [{i}/{len(jobs)}] {name}")
+        try:
+            url = a.link(path)
+            r = httpx.get(url, timeout=60, follow_redirects=True,
+                          headers={"Range": "bytes=0-320"})
+            head = (r.content or b"")[:320].lstrip()
+            if r.status_code in (400, 401, 403, 404) or head.startswith(b'{"code"') \
+                    or head.startswith(b"<"):
+                raise RuntimeError(f"直链无效（HTTP {r.status_code}）")
+        except Exception as e:
+            link_err = f"{type(e).__name__}: {e}"
+            print(f"[quark] {slug}: 取链失败 {name}: {link_err}", flush=True)
+            continue
+        try:
+            aria().add(url, str(stage), out=name)
+            store.mark_file(slug, name, "queued")
+        except Exception as e:
+            # aria2 没起 / RPC 连不上 → 本进程直接流式下载（支持断点续传）
+            print(f"[quark] {slug}: aria2 不可用（{e}），改用内置下载 {name}", flush=True)
+            _quark_fetch(slug, url, stage / name, want.get(name) or 0, i, len(jobs))
+            store.mark_file(slug, name, "done")
+        added += 1
+
+    if not added:
+        set_phase(slug, "失败", f"夸克：取链失败（{link_err[:70]}）")
+        raise RuntimeError(f"夸克取链失败：{link_err[:140]}")
+
+    # 等这批在暂存区下完
+    deadline = time.time() + 8 * 3600
+    last = 0
+    while time.time() < deadline:
+        have = sum(1 for n, _, _ in jobs
+                   if (stage / n).exists() and not Path(str(stage / n) + ".aria2").exists())
+        if have != last:
+            last = have
+            set_phase(slug, "下载中", f"夸克 {have}/{len(jobs)} 已下载")
+        if have >= len(jobs):
+            break
+        if not busy_aria():
+            time.sleep(4)
+            have2 = sum(1 for n, _, _ in jobs
+                        if (stage / n).exists() and not Path(str(stage / n) + ".aria2").exists())
+            if have2 <= last:
+                break
+        time.sleep(6)
+
+    # 搬到资源目录 + 大小对账
+    moved, move_err = 0, ""
+    for name, path, is_zip in jobs:
+        src = stage / name
+        if not src.exists() or Path(str(src) + ".aria2").exists():
+            continue
+        w = want.get(name) or 0
+        if w and src.stat().st_size < w * 0.9 and not is_zip:
+            print(f"[quark] {slug}: {name} 只有 {src.stat().st_size} / {w}，丢弃", flush=True)
+            src.unlink(missing_ok=True)
+            continue
+        dst = out_dir / name
+        try:
+            if dst.exists():
+                dst.unlink()
+            shutil.move(str(src), str(dst))
+            moved += 1
+        except Exception as e:
+            move_err = f"{type(e).__name__}: {e}"
+            print(f"[quark] {slug}: 搬移失败 {name}: {move_err}", flush=True)
+
+    # 解压 zip
     for name, path, is_zip in jobs:
         z = out_dir / name
         if not is_zip or not z.exists():
@@ -1329,11 +1389,11 @@ def download_show_quark(slug: str, sh: dict, src: dict) -> None:
         except Exception as e:
             print(f"[quark] {slug}: 解压失败 {name}: {e}", flush=True)
 
-    have_video = sum(1 for f in local_files(slug))
-    print(f"[quark] {slug}: 完成，落盘 {last}/{len(jobs)}，当前视频 {have_video} 个", flush=True)
-
-    # 下完就把网盘里的转存清掉，别占空间（下次要下会重新转存）
-    if last >= len(jobs):
+    have_video = len(local_files(slug))
+    shutil.rmtree(stage, ignore_errors=True)
+    if moved >= len(jobs):
+        set_phase(slug, "完成", f"夸克：本次落盘 {moved} 个，本地共 {have_video} 个")
+        print(f"[quark] {slug}: 完成，搬移 {moved}/{len(jobs)}", flush=True)
         try:
             ids = [o.get("fid") for _, o in files if o.get("fid")]
             quark.remove(ids)
@@ -1341,6 +1401,59 @@ def download_show_quark(slug: str, sh: dict, src: dict) -> None:
             print(f"[quark] {slug}: 已清理网盘暂存", flush=True)
         except Exception as e:
             print(f"[quark] {slug}: 清理暂存失败 {e}", flush=True)
+    else:
+        set_phase(slug, "失败",
+                  f"夸克：只落盘 {moved}/{len(jobs)}，{move_err[:70]}")
+        print(f"[quark] {slug}: 失败，搬移 {moved}/{len(jobs)} {move_err}", flush=True)
+
+
+def _quark_fetch(slug: str, url: str, dst: Path, expect: int,
+                 idx: int = 1, total: int = 1) -> None:
+    """把 Alist 直链流式写到目标文件（支持断点续传），写完校验大小。"""
+    part = Path(str(dst) + ".part")
+    have = part.stat().st_size if part.exists() else 0
+    headers = {"User-Agent": "Mozilla/5.0", "Referer": "https://pan.quark.cn/"}
+    if have:
+        headers["Range"] = f"bytes={have}-"
+    try:
+        with httpx.stream("GET", url, headers=headers, timeout=60,
+                          follow_redirects=True) as r:
+            if r.status_code == 416:
+                have = 0
+                part.unlink(missing_ok=True)
+                return _quark_fetch(slug, url, dst, expect, idx, total)
+            if r.status_code not in (200, 206):
+                raise RuntimeError(f"HTTP {r.status_code}")
+            ct = (r.headers.get("content-type") or "").lower()
+            if "json" in ct or "html" in ct:
+                raise RuntimeError("直链返回的是错误页，不是视频")
+            mode = "ab" if (have and r.status_code == 206) else "wb"
+            if mode == "wb":
+                have = 0
+            total_b = int(r.headers.get("content-length") or 0) + have
+            last_pct = -1
+            with part.open(mode) as fh:
+                for chunk in r.iter_bytes(1 << 20):
+                    fh.write(chunk)
+                    have += len(chunk)
+                    if total_b:
+                        pct = int(have * 100 / total_b)
+                        if pct >= last_pct + 3:
+                            last_pct = pct
+                            set_phase(slug, "下载中",
+                                      f"夸克 [{idx}/{total}] {dst.name} {pct}%")
+    except PermissionError:
+        raise
+    except OSError as e:
+        raise RuntimeError(f"写入失败：{e}")
+
+    size = part.stat().st_size if part.exists() else 0
+    if expect and size < expect * 0.9:
+        part.unlink(missing_ok=True)
+        raise RuntimeError(f"大小不符（{size}/{expect}）")
+    if dst.exists():
+        dst.unlink()
+    part.replace(dst)
 
 
 def unzip_into(zpath: Path, out_dir: Path) -> int:
@@ -1381,7 +1494,7 @@ def busy_aria() -> bool:
         return False
 
 
-def download_show(slug: str) -> None:
+def download_show(slug: str, _fallback_used: bool = False) -> None:
     sh = store.show(slug)
     if not sh:
         raise RuntimeError("未找到该剧")
@@ -1406,7 +1519,20 @@ def download_show(slug: str) -> None:
                     set_phase(slug, "换源补全",
                               f"{src.get('label')} 有 {src.get('probe_eps')} 集")
     if src and (src.get("provider") or "百度") == "夸克":
-        return download_show_quark(slug, sh, src)
+        try:
+            return download_show_quark(slug, sh, src)
+        except Exception as e:
+            print(f"[quark] {slug}: 夸克下载失败（{e}），尝试换其他来源", flush=True)
+            alt = next((s for s in store.revivable_sources(slug)
+                        if (s.get("provider") or "") != "夸克"
+                        and (s.get("probe_eps") or 0) > 0), None)
+            if alt and not _fallback_used:
+                _fallback_used = True
+                store.set_active(slug, alt["id"])
+                set_phase(slug, "换源重试",
+                          f"夸克失败，改用{alt.get('provider')}（{alt.get('probe_eps')} 集）")
+                return download_show(slug, _fallback_used=True)
+            raise
     if src and (src.get("provider") or "百度") == "百度":
         url, pwd0 = src["url"], src.get("pwd") or ""
         src_label = src.get("label") or "百度"
@@ -1446,7 +1572,7 @@ def download_show(slug: str) -> None:
                 set_phase(slug, "换源重试",
                           f"上一条链接失效，改用「{nxt.get('label') or nxt.get('provider')}」")
                 print(f"[retry] {slug}: 换到来源 {nxt.get('id')} 重试", flush=True)
-                return download_show(slug)
+                return download_show(slug, _fallback_used=True)
             raise RuntimeError("分享已失效（作者删除或替换了链接），等文档更新出新的再试")
         else:
             raise RuntimeError(f"转存失败：{out[-240:]}")
@@ -2058,15 +2184,20 @@ def _startup() -> None:
     threading.Thread(target=check_loop, daemon=True).start()
 
 
+NO_CACHE = {"Cache-Control": "no-store, must-revalidate"}
+
+
 @app.get("/")
 def index():
-    return FileResponse(Path(__file__).parent / "static" / "index.html")
+    return FileResponse(Path(__file__).parent / "static" / "index.html",
+                        headers=NO_CACHE)
 
 
 @app.get("/manifest.webmanifest")
 def pwa_manifest():
     return FileResponse(Path(__file__).parent / "static" / "manifest.webmanifest",
-                        media_type="application/manifest+json")
+                        media_type="application/manifest+json",
+                        headers={"Cache-Control": "no-cache"})
 
 
 @app.get("/sw.js")
@@ -2084,7 +2215,7 @@ def pwa_icon_png(size: str):
     if not p.exists():
         return JSONResponse({"ok": False, "error": "not found"}, status_code=404)
     return FileResponse(p, media_type="image/png",
-                        headers={"Cache-Control": "public, max-age=86400"})
+                        headers={"Cache-Control": "no-cache"})
 
 
 @app.get("/icon-{size}.png")
@@ -2096,7 +2227,7 @@ def pwa_icon_png(size: str):
     if not p.exists():
         return JSONResponse({"ok": False, "error": "no such icon"}, status_code=404)
     return FileResponse(p, media_type="image/png",
-                        headers={"Cache-Control": "public, max-age=86400"})
+                        headers={"Cache-Control": "no-cache"})
 
 
 @app.get("/icon.svg")
@@ -2107,7 +2238,8 @@ def pwa_icon():
 
 @app.get("/login")
 def login_page():
-    return FileResponse(Path(__file__).parent / "static" / "login.html")
+    return FileResponse(Path(__file__).parent / "static" / "login.html",
+                        headers=NO_CACHE)
 
 
 @app.post("/api/login/start")
@@ -2168,7 +2300,8 @@ def quark_test():
 
 @app.get("/settings")
 def settings_page():
-    return FileResponse(Path(__file__).parent / "static" / "settings.html")
+    return FileResponse(Path(__file__).parent / "static" / "settings.html",
+                        headers=NO_CACHE)
 
 
 @app.get("/api/settings")
@@ -2450,7 +2583,17 @@ def status_panel(force: int = 0):
             "cookie": bool(st_path or ck),
             "anonymous": not (st_path or ck),
         }
-        _STATUS_CACHE.update(ts=now, val={"baidu": chk, "kdocs": kd})
+        # 夸克：有 cookie 就实测一次（列表根目录），失败说明过期
+        try:
+            qv = quark.verify() if quark.has_cookie() else {"ok": False, "error": "未登录"}
+        except Exception as e:
+            qv = {"ok": False, "error": f"{type(e).__name__}: {e}"}
+        qk = {"has_cookie": quark.has_cookie(),
+              "ok": bool(qv.get("ok")),
+              "total": qv.get("total"),
+              "error": "" if qv.get("ok") else (qv.get("error") or "未登录")}
+
+        _STATUS_CACHE.update(ts=now, val={"baidu": chk, "kdocs": kd, "quark": qk})
 
     d = dict(_STATUS_CACHE["val"])
     try:
@@ -2772,8 +2915,14 @@ def activate_source_api(req: SourceIdReq):
     src = store.get_source(req.id)
     if not src:
         return {"ok": False, "error": "来源不存在"}
+    # 手动切换 = 我要用这个，顺手锁住，免得下次自动选优又换回去
     store.set_active(src["slug"], req.id)
-    return {"ok": True}
+    try:
+        store.set_locked(req.id, True)
+    except Exception:
+        pass
+    return {"ok": True, "locked": True,
+            "provider": src.get("provider"), "eps": src.get("probe_eps")}
 
 
 @app.post("/api/sources/choose")
