@@ -20,7 +20,8 @@
   --safe-b:env(safe-area-inset-bottom,0px);
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html{-webkit-text-size-adjust:100%}
+html{-webkit-text-size-adjust:100%;overflow-x:clip}
+body{overflow-x:clip}
 body{
   margin:0;background:var(--bg);color:var(--fg);
   font:15px/1.55 -apple-system,BlinkMacSystemFont,"PingFang SC","HarmonyOS Sans SC","Microsoft YaHei",sans-serif;
@@ -43,9 +44,12 @@ code{background:#0D1117;border:1px solid var(--line);padding:1px 5px;border-radi
 .back:active{background:var(--s2)}
 .ttl{flex:1;min-width:0}
 .ttl h1{margin:0;font-size:16.5px;font-weight:700;letter-spacing:.3px}
-.ttl p{margin:2px 0 0;font-size:11.5px;color:var(--fg3)}
+.ttl p{margin:2px 0 0;font-size:11.5px;color:var(--fg3);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .hstat{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--fg3);
-  padding:5px 10px;border-radius:20px;border:1px solid var(--line);background:var(--s1);white-space:nowrap}
+  padding:5px 10px;border-radius:20px;border:1px solid var(--line);background:var(--s1);
+  white-space:nowrap;max-width:38vw;overflow:hidden}
+.hstat span{overflow:hidden;text-overflow:ellipsis}
 .hstat .d{width:6px;height:6px;border-radius:50%;background:var(--fg3)}
 .hstat.ok .d{background:var(--ok)} .hstat.err .d{background:var(--err)} .hstat.warn .d{background:var(--warn)}
 
@@ -55,8 +59,8 @@ code{background:#0D1117;border:1px solid var(--line);padding:1px 5px;border-radi
 main{min-width:0}
 
 /* 移动端：横向 chip 导航 */
-.navchips{position:sticky;top:calc(52px + env(safe-area-inset-top,0px));z-index:20;
-  display:flex;gap:7px;overflow-x:auto;padding:9px 16px;margin:0 -16px 4px;
+.navchips{max-width:100vw;position:sticky;top:calc(var(--hdr,58px) + env(safe-area-inset-top,0px));z-index:20;
+  display:flex;gap:7px;overflow-x:auto;padding:9px 16px;margin:0 0 4px;
   background:rgba(10,12,16,.96);backdrop-filter:blur(14px);
   border-bottom:1px solid var(--line);scrollbar-width:none}
 .navchips::-webkit-scrollbar{display:none}
@@ -195,7 +199,7 @@ select{background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.o
   body{padding-bottom:calc(80px + var(--safe-b))}
   .wrap{display:grid;grid-template-columns:196px minmax(0,1fr);gap:26px;padding-top:20px}
   .navchips{display:none}
-  .sidenav{display:block;position:sticky;top:calc(78px + env(safe-area-inset-top,0px));
+  .sidenav{display:block;position:sticky;top:calc(var(--hdr,58px) + 16px + env(safe-area-inset-top,0px));
     align-self:start;padding-top:2px}
   .sidenav .nt{font-size:10.5px;color:var(--fg3);letter-spacing:.6px;
     text-transform:uppercase;margin:0 0 8px 10px}
@@ -204,11 +208,19 @@ select{background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.o
   .sidenav a:hover{background:var(--s1);color:var(--fg)}
   .sidenav a.on{background:var(--acc-weak);color:#9CBCF6;font-weight:600}
   .sidenav a .d{width:5px;height:5px;border-radius:50%;background:currentColor;opacity:.5}
-  .ov{grid-template-columns:repeat(5,minmax(0,1fr))}
+  .ov{grid-template-columns:repeat(auto-fit,minmax(148px,1fr))}
   .ovc:last-child:nth-child(odd){grid-column:auto}
   .group{margin-top:26px}
   .card{margin-bottom:13px}
   .row2{grid-template-columns:1fr 1fr}
+}
+@media (max-width:380px){
+  .hstat{display:none}
+  .top{padding-left:12px;padding-right:12px}
+  .toprow{gap:9px}
+  .ttl h1{font-size:16px}
+  .wrap{padding-left:12px;padding-right:12px}
+  .navchips{padding-left:12px;padding-right:12px}
 }
 @media (max-width:360px){
   .row2{grid-template-columns:1fr}
@@ -222,7 +234,7 @@ select{background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.o
     <a class="back" href="/" aria-label="返回">←</a>
     <div class="ttl">
       <h1>设置</h1>
-      <p>连接 · 下载 · 来源 · 通知 · 助手</p>
+      <p>连接 · 下载 · 来源 · 通知 · 助手 · <span id="buildTag">b1122</span></p>
     </div>
     <div class="hstat" id="hstat"><i class="d"></i><span>读取中</span></div>
   </div>
@@ -260,6 +272,8 @@ select{background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.o
           <div class="v" id="ov-alist-v">—</div><div class="s" id="ov-alist-s">检查中</div></div>
         <div class="ovc" id="ov-baidu"><div class="ok1"><i class="d"></i>百度网盘</div>
           <div class="v" id="ov-baidu-v">—</div><div class="s" id="ov-baidu-s">检查中</div></div>
+        <div class="ovc" id="ov-quark"><div class="ok1"><i class="d"></i>夸克网盘</div>
+          <div class="v" id="ov-quark-v">—</div><div class="s" id="ov-quark-s">检查中</div></div>
         <div class="ovc" id="ov-disk"><div class="ok1"><i class="d"></i>磁盘剩余</div>
           <div class="v" id="ov-disk-v">—</div><div class="s" id="ov-disk-s">—</div></div>
         <div class="ovc" id="ov-notify"><div class="ok1"><i class="d"></i>通知</div>
@@ -971,6 +985,19 @@ function qkSet(cls, text, tagCls, tagText){
     t.textContent = tagText || '';
   }
 }
+function qkOverview(d){
+  if (!d) return;
+  const ok = !!(d.has_cookie && d.verify && d.verify.ok);
+  if (ok){
+    const n = d.verify.total;
+    setOv('quark', 'ok', '已登录', n != null ? ('网盘 ' + n + ' 项') : '接口正常');
+  } else if (d.has_cookie){
+    setOv('quark', 'err', '已失效', (d.verify && d.verify.error) || '需要重新扫码');
+  } else {
+    setOv('quark', 'warn', '未登录', '只能探测，不能下载');
+  }
+}
+
 function qkShowQr(on){
   document.querySelector('#qkQrWrap').style.display = on ? 'block' : 'none';
   if (on) document.querySelector('#qkQr').src = '/api/quark/login.png?t=' + Date.now();
@@ -979,6 +1006,7 @@ async function qkPoll(){
   try{
     const d = await (await fetch('/api/quark/login/status')).json();
     if (d.shot) document.querySelector('#qkQr').src = '/api/quark/login.png?t=' + Date.now();
+    qkOverview(d);
     if (d.logged_in || (d.has_cookie && d.verify && d.verify.ok)){
       if (qkTimer){ clearInterval(qkTimer); qkTimer = null; }
       qkShowQr(false);
@@ -996,7 +1024,7 @@ async function qkPoll(){
       qkShowQr(true);
       qkSet('', (d.hint || '等待扫码') + (d.expires_in ? '（剩 ' + d.expires_in + 's）' : ''));
     } else if (d.has_cookie){
-      qkSet('warn', '有 Cookie 但接口没通：' + ((d.verify && d.verify.error) || '可能需要重新登录'), 'warn', '已失效');
+      qkSet('warn', 'Cookie 失效：' + ((d.verify && d.verify.error) || '需要重新扫码'), 'warn', '已失效');
     } else {
       qkSet('', '未登录');
     }
@@ -1082,7 +1110,15 @@ document.addEventListener('click', e => {
   }
 });
 
-load().then(syncNav).then(function(){ qkPoll(); });
+function syncHdrVar(){
+  const hd = document.querySelector('header.top');
+  if (hd) document.documentElement.style.setProperty('--hdr', Math.round(hd.getBoundingClientRect().height) + 'px');
+}
+window.addEventListener('resize', syncHdrVar);
+window.addEventListener('orientationchange', function(){ setTimeout(syncHdrVar, 150); });
+
+syncHdrVar();
+load().then(syncNav).then(function(){ qkPoll(); syncHdrVar(); });
 </script>
 </body>
 </html>
