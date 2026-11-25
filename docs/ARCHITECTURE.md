@@ -1,5 +1,7 @@
 # 架构
 
+**简体中文** · [English](ARCHITECTURE.en.md)
+
 ## 数据流
 
 ```
