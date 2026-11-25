@@ -3,7 +3,7 @@
 [![Docker](https://github.com/leeaoon168-oss/panfollow-nas/actions/workflows/docker.yml/badge.svg)](https://github.com/leeaoon168-oss/panfollow-nas/actions/workflows/docker.yml)
 [![CI](https://github.com/leeaoon168-oss/panfollow-nas/actions/workflows/ci.yml/badge.svg)](https://github.com/leeaoon168-oss/panfollow-nas/actions/workflows/ci.yml)
 [![ghcr](https://img.shields.io/badge/ghcr.io-panfollow--nas-2496ED?logo=docker&logoColor=white)](https://github.com/leeaoon168-oss/panfollow-nas/pkgs/container/panfollow-nas)
-[![version](https://img.shields.io/badge/version-2.0-blue)](https://github.com/leeaoon168-oss/panfollow-nas/releases)
+[![version](https://img.shields.io/badge/version-2.1-blue)](https://github.com/leeaoon168-oss/panfollow-nas/releases)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![fnOS](https://img.shields.io/badge/开发与验证-fnOS%20%E9%A3%9E%E7%89%9B-4FD3A0)](https://www.fnnas.com/)
 
@@ -174,9 +174,11 @@ docs/           架构、配置、排错
 - **探测（不用登录）**：夸克分享页游客可读，所以"多少集 / 什么画质 / 总共多大"能直接算出来，正常参与选优
 - **下载（要登录）**：设置 → 连接与账号 → 夸克网盘 → 扫码。
   下载时把这一集转存到你自己的夸克网盘 → 由 Alist 的夸克驱动取直链 → aria2 落盘 → 删掉转存
+  （aria2 没起也能下：会退回到容器内置的流式下载，同样支持断点续传）
   （夸克免费空间只有 ~10GB，所以是"转存一集 → 下载 → 清理"滚动进行）
 
-因此**夸克下载需要 Alist（填在设置里）+ aria2 容器**；只用百度的话这两个都不需要。
+因此**夸克下载需要 Alist（填在设置里）**；aria2 推荐但不强制（没起会走内置下载）。
+只用百度的话两者都不需要。
 
 **Q：迅雷 / 139 / 115 链接呢？**
 会被解析出来、在来源面板里能看到，但暂不参与下载（和早期版本的夸克一样）。
