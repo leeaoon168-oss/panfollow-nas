@@ -55,3 +55,6 @@ CI 里还会跑 `docker compose config -q` 和完整镜像构建。
 
 `README.md`（简体中文）和 `README.en.md`（English）是同一份内容，
 改功能或配置时两边一起改，避免中英不一致。
+## 更新记录
+
+功能变更 / 修复请同步写进 `CHANGELOG.md` 的「未发布」小节，发版时再改成具体版本号。
