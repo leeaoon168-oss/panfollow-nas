@@ -4,6 +4,7 @@
 [![CI](https://github.com/leeaoon168-oss/panfollow-nas/actions/workflows/ci.yml/badge.svg)](https://github.com/leeaoon168-oss/panfollow-nas/actions/workflows/ci.yml)
 [![ghcr](https://img.shields.io/badge/ghcr.io-panfollow--nas-2496ED?logo=docker&logoColor=white)](https://github.com/leeaoon168-oss/panfollow-nas/pkgs/container/panfollow-nas)
 [![version](https://img.shields.io/badge/version-2.1-blue)](https://github.com/leeaoon168-oss/panfollow-nas/releases)
+[![changelog](https://img.shields.io/badge/changelog-2.1-blueviolet)](CHANGELOG.md)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![fnOS](https://img.shields.io/badge/developed%20on-fnOS%20(NAS)-4FD3A0)](https://www.fnnas.com/)
 
@@ -206,6 +207,10 @@ Archived (finished) shows never participate in any download flow, and their file
 This project only moves files from **publicly shared links** onto your own disk. It does not host,
 provide, or index any content. Make sure you have the right to download what you download, and comply
 with the cloud provider's terms and your local laws. Use at your own risk.
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for what changed in each release.
 
 ## License
 
